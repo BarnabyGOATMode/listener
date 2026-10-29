@@ -6,8 +6,19 @@ import type { InboxRow } from "@/lib/types";
 import { useSession } from "./Providers";
 
 export type Conversation = InboxRow & { other: MiniProfile | null };
-type Ctx = { inbox: Conversation[]; unread: number; requests: number; refresh: () => Promise<void>; ready: boolean };
-const MessagesCtx = createContext<Ctx>({ inbox: [], unread: 0, requests: 0, refresh: async () => {}, ready: false });
+type Ctx = { inbox: Conversation[]; unread: number; requests: number; refresh: () => Promise<void>; ready: boolean; problem: string | null };
+const MessagesCtx = createContext<Ctx>({ inbox: [], unread: 0, requests: 0, refresh: async () => {}, ready: false, problem: null });
+
+/** Turns a database error into something a person can act on. */
+export function chatError(e: { code?: string; message?: string } | null | undefined) {
+  const m = e?.message ?? "";
+  if (e?.code === "PGRST202" || e?.code === "PGRST205" || e?.code === "42883" || e?.code === "42P01" || /could not find the (function|table)|does not exist/i.test(m))
+    return "Messages aren't switched on yet. Run 0004_messages.sql in Supabase's SQL Editor, then reload this page.";
+  if (/can't message|cannot message/i.test(m)) return "You can't message this account.";
+  if (/row-level security/i.test(m)) return "You can't send messages in this chat.";
+  if (/sign in/i.test(m)) return "Sign in to send messages.";
+  return `Something went wrong with messages: ${m || "unknown error"}`;
+}
 export const useMessages = () => useContext(MessagesCtx);
 
 /** Your conversations, kept live: new messages anywhere refresh the inbox and unread counts straight away. */
@@ -15,12 +26,14 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const { profile } = useSession();
   const [inbox, setInbox] = useState<Conversation[]>([]);
   const [ready, setReady] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!profile) { setInbox([]); return; }
     const db = supabase();
     const { data, error } = await db.rpc("my_inbox");
-    if (error) { setReady(true); return; } // messages not set up yet (migration 0004), or offline
+    if (error) { setProblem(chatError(error)); setReady(true); return; }
+    setProblem(null);
     const rows = (data as InboxRow[]) ?? [];
     const ids = [...new Set(rows.map((r) => r.other_id))];
     const { data: people } = ids.length ? await db.from("profiles").select("*").in("id", ids) : { data: [] };
@@ -47,6 +60,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     requests: inbox.filter((c) => c.my_status === "request").length,
     refresh,
     ready,
-  }), [inbox, refresh, ready]);
+    problem,
+  }), [inbox, refresh, ready, problem]);
   return <MessagesCtx.Provider value={value}>{children}</MessagesCtx.Provider>;
 }

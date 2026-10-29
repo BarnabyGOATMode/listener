@@ -253,6 +253,8 @@ a.u, button.u { background: none; border: 0; padding: 0; font: 600 inherit var(-
 .phead p { margin: 8px 0 0; font-family: var(--serif); font-size: 19px; max-width: 60ch; overflow-wrap: anywhere; }
 .counts { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 14px; color: var(--muted); }
 .counts b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.count-btn { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.count-btn:hover { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
 .statrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 28px; margin-top: 28px; }
 .stat { border-top: 2px solid var(--fg); padding-top: 10px; }
 .stat div { font: 400 48px/1.05 var(--serif); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }

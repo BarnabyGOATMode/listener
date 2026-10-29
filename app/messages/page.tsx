@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/bits";
-import { type Conversation, useMessages } from "@/components/Messages";
+import { type Conversation, chatError, useMessages } from "@/components/Messages";
 import { useSession } from "@/components/Providers";
 import { MusicCard } from "@/components/SendMusic";
 import type { MiniProfile } from "@/lib/feed";
@@ -16,8 +16,8 @@ export default function MessagesPage() {
 }
 
 function Inbox() {
-  const { user, profile, ready: sessionReady } = useSession();
-  const { inbox, requests, ready, refresh } = useMessages();
+  const { user, profile, ready: sessionReady, toast } = useSession();
+  const { inbox, requests, ready, refresh, problem } = useMessages();
   const params = useSearchParams();
   const router = useRouter();
   const active = params.get("c");
@@ -29,7 +29,7 @@ function Inbox() {
     const to = params.get("to");
     if (!to || !user) return;
     supabase().rpc("start_conversation", { other: to }).then(async ({ data, error }) => {
-      if (error) { router.replace("/messages"); return; }
+      if (error) { toast(chatError(error)); router.replace("/messages"); return; }
       await refresh();
       router.replace(`/messages?c=${data}`);
     });
@@ -50,9 +50,10 @@ function Inbox() {
         </div>
         {composing && <NewMessage onPick={async (id) => {
           const { data, error } = await supabase().rpc("start_conversation", { other: id });
-          if (error) return;
+          if (error) return toast(chatError(error));
           await refresh(); setComposing(false); setTab("chats"); router.push(`/messages?c=${data}`);
         }} />}
+        {problem && <p className="notice" role="alert" style={{ marginTop: 0 }}>{problem}</p>}
         <div className="tabs" role="tablist">
           <button role="tab" aria-selected={tab === "chats"} onClick={() => setTab("chats")}>Chats</button>
           <button role="tab" aria-selected={tab === "requests"} onClick={() => setTab("requests")}>Requests{requests ? ` (${requests})` : ""}</button>
@@ -89,9 +90,11 @@ function NewMessage({ onPick }: { onPick: (id: string) => void }) {
     const db = supabase();
     const term = q.trim().toLowerCase().replace(/^@/, "").replace(/[,()%*\\]/g, "");
     const t = setTimeout(async () => {
+      // Typing searches everyone; otherwise show people you follow, or the newest members if you don't follow anyone yet.
       const { data } = term
         ? await db.from("profiles").select("*").or(`handle.ilike.%${term}%,name.ilike.%${term}%`).neq("id", user?.id ?? "").limit(12)
-        : following.size ? await db.from("profiles").select("*").in("id", [...following]).limit(12) : { data: [] };
+        : following.size ? await db.from("profiles").select("*").in("id", [...following]).limit(12)
+        : await db.from("profiles").select("*").neq("id", user?.id ?? "").order("created_at", { ascending: false }).limit(12);
       setPeople((data as MiniProfile[]) ?? []);
     }, 200);
     return () => clearTimeout(t);
@@ -99,6 +102,7 @@ function NewMessage({ onPick }: { onPick: (id: string) => void }) {
   return (
     <div className="dm-new">
       <input className="input" autoFocus placeholder="To: name or @username" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Who do you want to message?" />
+      {!people.length && <p className="muted" style={{ margin: "4px 0" }}>{q.trim() ? "No one matches that." : "No one else is on listener yet."}</p>}
       {people.map((p) => (
         <button key={p.id} className="dm-row" onClick={() => onPick(p.id)}>
           <Avatar profile={p} /><span className="n"><b>{p.name}</b><small>@{p.handle}</small></span><span />
@@ -171,7 +175,7 @@ function Thread({ conv }: { conv: Conversation }) {
     if (!body || !user) return;
     setText("");
     const { data, error } = await db.from("messages").insert({ conversation_id: conv.conversation_id, sender_id: user.id, body }).select().single();
-    if (error) { setText(body); return toast(blocked ? "Unblock this account to send messages." : "Couldn't send. You may not be able to message this account."); }
+    if (error) { setText(body); return toast(blocked ? "Unblock this account to send messages." : chatError(error)); }
     setMsgs((cur) => (cur.some((x) => x.id === (data as Message).id) ? cur : [...cur, data as Message]));
     refresh();
   };

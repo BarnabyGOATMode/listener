@@ -8,6 +8,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { ProfileForm } from "@/components/ProfileForm";
 import { CoverWall, type WallTile } from "@/components/CoverWall";
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { FollowList } from "@/components/FollowList";
 import { applyLook, useSession } from "@/components/Providers";
 import { plural, stars } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
@@ -28,6 +29,7 @@ export function ProfileView({ handle }: { handle: string }) {
   const [editing, setEditing] = useState(false);
   const [settings, setSettings] = useState(params.get("settings") === "1");
   const [adding, setAdding] = useState(false);
+  const [list, setList] = useState<"followers" | "following" | null>(null);
   const own = !!me && p?.id === me.id;
 
   useEffect(() => setSettings(params.get("settings") === "1"), [params]);
@@ -86,7 +88,7 @@ export function ProfileView({ handle }: { handle: string }) {
           <h1 className="display">{p.name}<ArtistBadge profile={p} /></h1>
           <div className="h">@{p.handle}{p.kind === "artist" && (p.genre || p.location) ? ` · ${[p.genre, p.location].filter(Boolean).join(" · ")}` : ""}</div>
           {p.bio && <p>{p.bio}</p>}
-          <div className="counts"><span><b>{logs.length + songs.length}</b> {logs.length + songs.length === 1 ? "review" : "reviews"}</span><span><b>{counts.followers}</b> followers</span><span><b>{counts.following}</b> following</span></div>
+          <div className="counts"><span><b>{logs.length + songs.length}</b> {logs.length + songs.length === 1 ? "review" : "reviews"}</span><button className="count-btn" onClick={() => setList("followers")}><b>{counts.followers}</b> {counts.followers === 1 ? "follower" : "followers"}</button><button className="count-btn" onClick={() => setList("following")}><b>{counts.following}</b> following</button></div>
           <div className="actions" style={{ marginTop: 12 }}>
             {own ? (
               <>
@@ -98,6 +100,7 @@ export function ProfileView({ handle }: { handle: string }) {
         </div>
       </div>
 
+      {list && <FollowList key={`${p.id}-${list}`} userId={p.id} kind={list} name={p.name} onClose={() => setList(null)} />}
       {own && editing && user && (
         <>
           <div className="section-h"><h2>Edit profile</h2></div>

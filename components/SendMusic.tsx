@@ -5,7 +5,7 @@ import type { MiniProfile } from "@/lib/feed";
 import { supabase } from "@/lib/supabase/client";
 import type { Album } from "@/lib/types";
 import { Avatar, Cover } from "./bits";
-import { useMessages } from "./Messages";
+import { chatError, useMessages } from "./Messages";
 import { useSession } from "./Providers";
 
 export type Attachment = { type: "album" | "song"; albumId: string; index?: number };
@@ -43,14 +43,16 @@ export function SendMusic({ attachment, label, icon }: { attachment: Attachment;
     setBusy(to.id);
     const db = supabase();
     const { data: conv, error } = await db.rpc("start_conversation", { other: to.id });
+    let failure = error;
     if (!error) {
       const { error: e2 } = await db.from("messages").insert({
         conversation_id: conv, sender_id: user.id, body: note.trim(),
         attachment_type: attachment.type, attachment_id: attachment.albumId, attachment_index: attachment.type === "song" ? attachment.index ?? 0 : null,
       });
       if (!e2) { toast(`Sent to @${to.handle}`); setNote(""); dlg.current?.close(); refresh(); setBusy(null); return; }
+      failure = e2;
     }
-    toast(/message this account/.test(error?.message ?? "") ? "You can't message this account." : "Couldn't send that. Try again.");
+    toast(chatError(failure));
     setBusy(null);
   };
 
