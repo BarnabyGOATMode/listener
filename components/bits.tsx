@@ -88,16 +88,18 @@ const SERVICES: [string, (q: string) => string][] = [
 ];
 
 /** Opens a search for this album or song in the listener's streaming service. */
-export function ListenNow({ query }: { query: string }) {
+export function ListenNow({ query, compact }: { query: string; compact?: boolean }) {
   const q = encodeURIComponent(query);
   return (
-    <details className="listen" onToggle={(e) => {
+    <details className={`listen${compact ? " compact" : ""}`} onToggle={(e) => {
       const d = e.currentTarget;
       if (!d.open) return;
       const close = (ev: MouseEvent) => { if (!d.contains(ev.target as Node)) { d.open = false; document.removeEventListener("click", close, true); } };
       document.addEventListener("click", close, true);
     }}>
-      <summary><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" /></svg>Listen now</summary>
+      {compact
+        ? <summary className="act" title="Listen now"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M10 8.5v7l5.5-3.5z" style={{ fill: "currentColor", stroke: "none" }} /></svg><span className="sr">Listen now</span></summary>
+        : <summary><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" /></svg>Listen now</summary>}
       <div className="lmenu">
         {SERVICES.map(([name, url]) => <a key={name} href={url(q)} target="_blank" rel="noopener noreferrer">{name}</a>)}
         <span>Opens in a new tab</span>
