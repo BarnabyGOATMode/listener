@@ -21,6 +21,7 @@ const I = {
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5 7 7M17 17l1.5 1.5M5.5 18.5 7 17M17 7l1.5-1.5" /></>,
   moon: <path d="M19.8 14.6A8.2 8.2 0 1 1 9.4 4.2a6.6 6.6 0 0 0 10.4 10.4z" />,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  news: <><path d="M4.5 5.5h12v13a2 2 0 0 0 2 2h-12a2 2 0 0 1-2-2z" /><path d="M16.5 9.5h3v9a2 2 0 0 1-2 2M7.5 9h6M7.5 12.5h6M7.5 16h4" /></>,
   plane: <path d="M21 3.5 10.6 13.9M21 3.5l-6.6 17-3.8-6.6L4 10.1z" />,
 };
 const Icon = ({ d }: { d: React.ReactNode }) => <svg viewBox="0 0 24 24" aria-hidden="true">{d}</svg>;
@@ -74,6 +75,7 @@ export function Rail() {
         <Item href="/" label="Feed" icon={<Icon d={I.home} />} current={is("/")} />
         <Item href="/discover" label="Discover" icon={<Icon d={I.compass} />} current={is("/discover")} />
         <Item href="/albums" label="Search" icon={<Icon d={I.search} />} current={is("/albums")} />
+        <Item href="/news" label="News" icon={<Icon d={I.news} />} current={is("/news")} />
         {available && <Item label="Notifications" icon={<Icon d={I.heart} />} onClick={() => toggle("rail")} badge={open ? 0 : unread} current={open === "rail"} trigger />}
         {profile && <Item href="/messages" label="Messages" icon={<Icon d={I.plane} />} current={is("/messages")} badge={unreadMessages + requests} />}
         {profile && <NewReview trigger={(open) => <Item label="New review" icon={<Icon d={I.plus} />} onClick={open} />} />}

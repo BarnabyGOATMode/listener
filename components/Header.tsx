@@ -9,7 +9,7 @@ import { useMessages } from "./Messages";
 import { useNotifications } from "./Notifications";
 import { useSession } from "./Providers";
 
-const NAV = [["/", "Feed"], ["/discover", "Discover"], ["/albums", "Search"]] as const;
+const NAV = [["/", "Feed"], ["/discover", "Discover"], ["/albums", "Search"], ["/news", "News"]] as const;
 
 export function Header() {
   const { user, profile } = useSession();
@@ -28,6 +28,7 @@ export function Header() {
         <Link className="logo" href="/">listener</Link>
         <div className="tright">
           <MastheadSearch />
+          <Link className="bell mobile-news" href="/news" aria-label="News"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.5h12v13a2 2 0 0 0 2 2h-12a2 2 0 0 1-2-2z" /><path d="M16.5 9.5h3v9a2 2 0 0 1-2 2M7.5 9h6M7.5 12.5h6M7.5 16h4" /></svg></Link>
           {profile && <MessagesLink />}
           {profile && <Bell />}
           {profile ? (
