@@ -578,3 +578,10 @@ a.u, button.u { background: none; border: 0; padding: 0; font: 600 inherit var(-
   .dm:not(.has-thread) .dm-thread { display: none; }
   .dm-back { display: block; }
 }
+
+.reviewdlg { width: min(480px, calc(100vw - 32px)); }
+.pick { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center; padding: 8px; margin: 0 -8px; text-decoration: none; transition: background .2s var(--ease); }
+.pick:hover, .pick:focus-visible { background: var(--surface); }
+.pick .t { min-width: 0; line-height: 1.3; }
+.pick b { display: block; font: 500 16px var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick small { display: block; font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

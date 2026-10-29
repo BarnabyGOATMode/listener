@@ -7,6 +7,7 @@ import type { Look } from "@/lib/types";
 import { AvatarFace, avatarColor } from "./bits";
 import { useOutside } from "./Header";
 import { useMessages } from "./Messages";
+import { NewReview } from "./NewReview";
 import { useNotifications } from "./Notifications";
 import { applyLook, useSession } from "./Providers";
 
@@ -75,7 +76,7 @@ export function Rail() {
         <Item href="/albums" label="Search" icon={<Icon d={I.search} />} current={is("/albums")} />
         {available && <Item label="Notifications" icon={<Icon d={I.heart} />} onClick={() => toggle("rail")} badge={open ? 0 : unread} current={open === "rail"} trigger />}
         {profile && <Item href="/messages" label="Messages" icon={<Icon d={I.plane} />} current={is("/messages")} badge={unreadMessages + requests} />}
-        {profile && <Item href="/albums" label="Log an album" icon={<Icon d={I.plus} />} />}
+        {profile && <NewReview trigger={(open) => <Item label="New review" icon={<Icon d={I.plus} />} onClick={open} />} />}
         {profile ? (
           <Link className="ri" href={`/u/${profile.handle}`} aria-label="Profile" aria-current={mine ? "page" : undefined}>
             <span className="rail-av" style={{ background: avatarColor(profile.id) }} aria-hidden="true"><AvatarFace profile={profile} /></span>
