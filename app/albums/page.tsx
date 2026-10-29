@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import { AlbumCard } from "@/components/AlbumCard";
 import { useSession } from "@/components/Providers";
 import { supabase } from "@/lib/supabase/client";
-import type { Album, SearchHit } from "@/lib/types";
+import Link from "next/link";
+import { Cover } from "@/components/bits";
+import { duration, plural } from "@/lib/format";
+import type { Album, SearchHit, SongHit } from "@/lib/types";
 
 export default function AlbumsPage() {
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<{ local: SearchHit[]; results: SearchHit[]; error?: string } | null>(null);
+  const [hits, setHits] = useState<{ local: SearchHit[]; results: SearchHit[]; songs?: SongHit[]; error?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [recent, setRecent] = useState<Album[]>([]);
   const [adding, setAdding] = useState(false);
@@ -27,7 +30,7 @@ export default function AlbumsPage() {
         const r = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { signal: ctl.signal });
         setHits(await r.json());
       } catch (e) {
-        if ((e as Error).name !== "AbortError") setHits({ local: [], results: [], error: "Search isn't reachable right now. Check your connection." });
+        if ((e as Error).name !== "AbortError") setHits({ local: [], results: [], songs: [], error: "Search isn't reachable right now. Check your connection." });
       } finally { setBusy(false); }
     }, 400);
     return () => { clearTimeout(t); ctl.abort(); };
@@ -47,9 +50,10 @@ export default function AlbumsPage() {
       {hits ? (
         <>
           {hits.local.length > 0 && <Section title="On listener" note={`${hits.local.length}`} items={hits.local} />}
-          <Section title="All music" note={busy ? "searching…" : `${hits.results.length} results`} items={hits.results} />
+          {!!hits.songs?.length && <Songs songs={hits.songs} />}
+          <Section title="Albums" note={busy ? "searching…" : plural(hits.results.length, "result")} items={hits.results} />
           {hits.error && <p className="error">{hits.error}</p>}
-          {!busy && !hits.local.length && !hits.results.length && !hits.error && (
+          {!busy && !hits.local.length && !hits.results.length && !hits.songs?.length && !hits.error && (
             <div className="empty"><strong>Nothing matched “{q.trim()}”.</strong>Check the spelling, try the artist&apos;s name, or add it yourself with “Can&apos;t find it?”.</div>
           )}
         </>
@@ -70,6 +74,26 @@ function Section({ title, note, items }: { title: string; note: string; items: S
     <>
       <div className="section-h"><h2>{title}</h2><span>{note}</span></div>
       <div className="grid">{items.map((h) => <AlbumCard key={h.id} album={h} sub={h.type} />)}</div>
+    </>
+  );
+}
+
+function Songs({ songs }: { songs: SongHit[] }) {
+  return (
+    <>
+      <div className="section-h"><h2>Songs</h2><span>{songs.length}</span></div>
+      <div className="songlist">
+        {songs.map((s) => (
+          <div className="songrow" key={`${s.album_id}-${s.title}`}>
+            <Link href={`/album/${s.album_id}/find?title=${encodeURIComponent(s.title)}`} tabIndex={-1} aria-hidden="true"><Cover album={{ id: s.album_id, title: s.album, artist: s.artist, cover_url: null }} size={250} /></Link>
+            <div className="t">
+              <Link className="song-title" href={`/album/${s.album_id}/find?title=${encodeURIComponent(s.title)}`}>{s.title}</Link>
+              <small>{s.artist_id ? <Link className="card-artist" href={`/artist/${s.artist_id}`}>{s.artist}</Link> : s.artist} · from <Link className="card-artist" href={`/album/${s.album_id}`}>{s.album}</Link>{s.year ? ` (${s.year})` : ""}</small>
+            </div>
+            <span className="len">{duration(s.length_ms)}</span>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import type { ArtistPage, SearchHit, Track } from "./types";
+import type { ArtistPage, SearchHit, SongHit, Track } from "./types";
 
 const API = "https://musicbrainz.org/ws/2";
 const UA = `listener/0.1 ( ${process.env.MUSICBRAINZ_CONTACT || "https://github.com/listener-app"} )`;
@@ -25,24 +25,75 @@ type Credit = { name: string; joinphrase?: string; artist?: { id: string; name: 
 const leadArtist = (c?: Credit) => c?.[0]?.artist?.id ?? null;
 const creditName = (c?: Credit) => (c ?? []).map((a) => a.name + (a.joinphrase ?? "")).join("").trim() || "Unknown artist";
 const yearOf = (d?: string) => (d && /^\d{4}/.test(d) ? Number(d.slice(0, 4)) : null);
-const lucene = (s: string) => s.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, " ").trim();
 
 type RG = { id: string; title: string; "primary-type"?: string; "secondary-types"?: string[]; "first-release-date"?: string; "artist-credit"?: Credit; score?: number };
 
+/** Search words: letters and numbers only (apostrophes kept inside words), so "White Ferrari, Frank Ocean" works. */
+const words = (q: string) => q.normalize("NFKC").toLowerCase().split(/[^\p{L}\p{N}']+/u).map((w) => w.replace(/^'+|'+$/g, "")).filter(Boolean).slice(0, 8).map((w) => (w.includes("'") ? `"${w}"` : w));
+const NOT_ALBUMS = 'NOT secondarytype:(compilation OR live OR remix OR "dj-mix" OR "mixtape/street")';
+
+const albumHit = (g: RG): SearchHit => ({
+  id: g.id,
+  title: g.title,
+  artist: creditName(g["artist-credit"]),
+  artist_id: leadArtist(g["artist-credit"]),
+  year: yearOf(g["first-release-date"]),
+  type: g["primary-type"] ?? "Album",
+  cover_url: coverUrl(g.id, 250),
+});
+
+/**
+ * Album search. Every word must match the title or the artist ("in rainbows radiohead"), so adding the
+ * artist narrows the results; if that finds too little, fall back to matching any word.
+ */
 export async function searchAlbums(q: string): Promise<SearchHit[]> {
-  const t = lucene(q);
-  if (!t) return [];
-  const query = `(releasegroup:(${t})^3 OR artist:(${t})) AND NOT secondarytype:(compilation OR live OR remix OR dj-mix OR mixtape/street)`;
-  const data = await mb<{ "release-groups": RG[] }>(`release-group?query=${encodeURIComponent(query)}&limit=25`);
-  return (data["release-groups"] ?? []).map((g) => ({
-    id: g.id,
-    title: g.title,
-    artist: creditName(g["artist-credit"]),
-    artist_id: leadArtist(g["artist-credit"]),
-    year: yearOf(g["first-release-date"]),
-    type: g["primary-type"] ?? "Album",
-    cover_url: coverUrl(g.id, 250),
-  }));
+  const w = words(q);
+  if (!w.length) return [];
+  const strict = `${w.map((t) => `(releasegroup:${t} OR artist:${t} OR artistname:${t})`).join(" AND ")} AND ${NOT_ALBUMS}`;
+  const found = (await mb<{ "release-groups": RG[] }>(`release-group?query=${encodeURIComponent(strict)}&limit=25`))["release-groups"] ?? [];
+  if (found.length >= 3) return rank(found).map(albumHit);
+  const t = w.join(" ");
+  const loose = `(releasegroup:(${t})^3 OR artist:(${t})) AND ${NOT_ALBUMS}`;
+  const more = (await mb<{ "release-groups": RG[] }>(`release-group?query=${encodeURIComponent(loose)}&limit=25`))["release-groups"] ?? [];
+  const seen = new Set(found.map((g) => g.id));
+  return [...rank(found), ...more.filter((g) => !seen.has(g.id))].map(albumHit);
+}
+
+/** Within equally good matches, show albums before EPs before singles. */
+function rank(list: RG[]) {
+  const weight = (g: RG) => ({ Album: 0, EP: 1, Single: 2 } as Record<string, number>)[g["primary-type"] ?? ""] ?? 3;
+  return [...list].sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || weight(a) - weight(b));
+}
+
+type Recording = {
+  id: string; title: string; length?: number; score?: number; "artist-credit"?: Credit;
+  releases?: { id: string; title: string; date?: string; status?: string; "release-group"?: { id: string; title: string; "primary-type"?: string; "secondary-types"?: string[] } }[];
+};
+
+/** Song search, so "white ferrari frank ocean" finds the song and the album it's on. Every word must match the song title or the artist. */
+export async function searchSongs(q: string): Promise<SongHit[]> {
+  const w = words(q);
+  if (!w.length) return [];
+  const query = w.map((t) => `(recording:${t} OR artist:${t} OR artistname:${t})`).join(" AND ") + " AND NOT video:true";
+  const recs = (await mb<{ recordings: Recording[] }>(`recording?query=${encodeURIComponent(query)}&limit=40`)).recordings ?? [];
+  const out: SongHit[] = [];
+  const seen = new Set<string>();
+  for (const r of recs) {
+    // Prefer the original studio album the song appears on; otherwise any release.
+    const rels = [...(r.releases ?? [])].filter((x) => x["release-group"]).sort((a, b) => {
+      const kind = (x: typeof a) => (x["release-group"]!["secondary-types"]?.length ? 3 : ({ Album: 0, EP: 1, Single: 2 } as Record<string, number>)[x["release-group"]!["primary-type"] ?? ""] ?? 3);
+      return kind(a) - kind(b) || (a.status === "Official" ? 0 : 1) - (b.status === "Official" ? 0 : 1) || (a.date || "9999").localeCompare(b.date || "9999");
+    });
+    const rel = rels[0];
+    if (!rel) continue;
+    const artist = creditName(r["artist-credit"]);
+    const key = `${r.title.toLowerCase()}|${artist.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ title: r.title, artist, artist_id: leadArtist(r["artist-credit"]), album_id: rel["release-group"]!.id, album: rel["release-group"]!.title, year: yearOf(rel.date), length_ms: r.length ?? null });
+    if (out.length >= 8) break;
+  }
+  return out;
 }
 
 type Release = { id: string; status?: string; date?: string; country?: string; media?: { format?: string; tracks?: { title: string; length?: number | null; position?: number }[] }[] };

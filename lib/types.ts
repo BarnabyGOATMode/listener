@@ -87,3 +87,6 @@ export type ArtistPage = {
   genres: string[];
   releases: { id: string; title: string; year: number | null; type: string; shelf: "album" | "ep" | "single" | "other"; cover_url: string }[];
 };
+
+/** A song found by search, with the album it appears on. */
+export type SongHit = { title: string; artist: string; artist_id: string | null; album_id: string; album: string; year: number | null; length_ms: number | null };

@@ -15,14 +15,20 @@ export function Avatar({ profile, large }: { profile: Pick<Profile, "id" | "name
 
 export const ArtistBadge = ({ profile }: { profile?: Pick<Profile, "kind"> | null }) => (profile?.kind === "artist" ? <span className="badge">Artist</span> : null);
 
-/** Album art from the Cover Art Archive, falling back to generated sleeve art when there is none. */
+/**
+ * Album art. MusicBrainz albums go through /api/cover, which tries the Cover Art Archive, Deezer and Apple in turn;
+ * other albums use their own cover if they have one. Generated sleeve art fills in when nothing is found.
+ */
 export function Cover({ album, size = 500 }: { album: Pick<Album, "id" | "title" | "artist" | "cover_url">; size?: 250 | 500 }) {
   const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [album.cover_url]);
-  const src = album.cover_url ? album.cover_url.replace(/front-\d+$/, `front-${size}`) : null;
+  const isMB = /^[0-9a-f-]{36}$/.test(album.id);
+  const src = isMB
+    ? `/api/cover/${album.id}?s=${size}&a=${encodeURIComponent(album.artist)}&t=${encodeURIComponent(album.title)}`
+    : album.cover_url;
+  useEffect(() => setFailed(false), [src]);
   return (
     <div className="cover">
-      {src && !failed ? <img src={src} alt={`${album.title} cover`} loading="lazy" onError={() => setFailed(true)} /> : <Generated album={album} />}
+      {src && !failed ? <img src={src} alt={`${album.title} cover`} loading="lazy" decoding="async" onError={() => setFailed(true)} /> : <Generated album={album} />}
     </div>
   );
 }
