@@ -119,7 +119,7 @@ function PeopleSearch() {
     const term = q.trim().toLowerCase().replace(/^@/, "").replace(/[,()%*\\]/g, "");
     if (!term) { setHits(null); return; }
     const t = setTimeout(async () => {
-      const { data } = await supabase().from("profiles").select("id,handle,name,kind").or(`handle.ilike.%${term}%,name.ilike.%${term}%`).neq("id", user?.id ?? "").limit(20);
+      const { data } = await supabase().from("profiles").select("*").or(`handle.ilike.%${term}%,name.ilike.%${term}%`).neq("id", user?.id ?? "").limit(20);
       setHits((data as MiniProfile[]) ?? []);
     }, 250);
     return () => clearTimeout(t);
@@ -144,8 +144,8 @@ function Suggestions({ compact }: { compact?: boolean }) {
     if (!user) return;
     const db = supabase();
     Promise.all([
-      db.from("follows").select("follower:profiles!follows_follower_id_fkey(id,handle,name,kind)").eq("followee_id", user.id).limit(30),
-      db.from("profiles").select("id,handle,name,kind").order("created_at", { ascending: false }).limit(40),
+      db.from("follows").select("follower:profiles!follows_follower_id_fkey(*)").eq("followee_id", user.id).limit(30),
+      db.from("profiles").select("*").order("created_at", { ascending: false }).limit(40),
     ]).then(([fans, recent]) => {
       const followers = ((fans.data ?? []) as unknown as { follower: MiniProfile | null }[]).map((r) => r.follower).filter(Boolean) as MiniProfile[];
       const seen = new Set<string>([user.id, ...following]);

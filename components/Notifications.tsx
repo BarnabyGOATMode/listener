@@ -26,7 +26,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   useEffect(() => { if (profile) setSeen(profile.notif_seen_at); }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const load = useCallback(async () => {
     const { data } = await supabase().from("notifications")
-      .select("*, actor:profiles!notifications_actor_id_fkey(id,handle,name,kind), album:albums(id,title,artist,cover_url,tracks)")
+      .select("*, actor:profiles!notifications_actor_id_fkey(*), album:albums(id,title,artist,cover_url,tracks)")
       .order("created_at", { ascending: false }).limit(50);
     setRows((data as Row[]) ?? []);
   }, []);

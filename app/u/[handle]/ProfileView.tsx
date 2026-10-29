@@ -7,12 +7,14 @@ import { ArtistBadge, Avatar, Cover } from "@/components/bits";
 import { FollowButton } from "@/components/FollowButton";
 import { ProfileForm } from "@/components/ProfileForm";
 import { FaceOut, VinylShelf } from "@/components/VinylShelf";
+import { AvatarUpload } from "@/components/AvatarUpload";
 import { applyLook, useSession } from "@/components/Providers";
 import { plural, stars } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
 import type { Album, Log, Look, Profile, SongReview } from "@/lib/types";
 
 type LogRow = Log & { album: Album };
+const PER_SHELF = 18;
 type SongRow = SongReview & { album: Album };
 
 export function ProfileView({ handle }: { handle: string }) {
@@ -58,10 +60,12 @@ export function ProfileView({ handle }: { handle: string }) {
     return () => { live = false; };
   }, [handle, me?.id]);
 
-  const months = useMemo(() => {
-    const g = new Map<string, LogRow[]>();
-    for (const l of logs) { const k = l.listened_on?.slice(0, 7) ?? "undated"; g.set(k, [...(g.get(k) ?? []), l]); }
-    return [...g.entries()];
+  // One bookcase, most recently rated first, continuing onto a new shelf every PER_SHELF records.
+  const shelves = useMemo(() => {
+    const sorted = [...logs].sort((a, b) => (b.updated_at || b.posted_at).localeCompare(a.updated_at || a.posted_at));
+    const out: LogRow[][] = [];
+    for (let i = 0; i < sorted.length; i += PER_SHELF) out.push(sorted.slice(i, i + PER_SHELF));
+    return out;
   }, [logs]);
 
   if (p === undefined) return <p className="more">Loading profile…</p>;
@@ -70,7 +74,7 @@ export function ProfileView({ handle }: { handle: string }) {
   return (
     <>
       <div className="phead">
-        <Avatar profile={p} large />
+        {own ? <AvatarUpload profile={p} onChange={(url) => setP({ ...p, avatar_url: url })} /> : <Avatar profile={p} large />}
         <div style={{ minWidth: 0 }}>
           <h1 className="display">{p.name}<ArtistBadge profile={p} /></h1>
           <div className="h">@{p.handle}{p.kind === "artist" && (p.genre || p.location) ? ` · ${[p.genre, p.location].filter(Boolean).join(" · ")}` : ""}</div>
@@ -90,6 +94,7 @@ export function ProfileView({ handle }: { handle: string }) {
       {own && editing && user && (
         <>
           <div className="section-h"><h2>Edit profile</h2></div>
+          <div className="field" style={{ marginBottom: 18 }}>Profile photo<AvatarUpload profile={p} large={false} withButtons onChange={(url) => setP({ ...p, avatar_url: url })} /></div>
           <ProfileForm userId={user.id} existing={p} onCancel={() => setEditing(false)} onSaved={async (np) => { setP(np); setEditing(false); await refresh(); if (np.handle !== handle) location.assign(`/u/${np.handle}`); }} />
           <Favorites profile={p} logs={logs} onSaved={(ids) => { setP({ ...p, favorites: ids }); setFavs(ids.map((id) => logs.find((l) => l.album_id === id)!.album)); }} />
         </>
@@ -124,9 +129,9 @@ export function ProfileView({ handle }: { handle: string }) {
       )}
 
       <div className="section-h"><h2>The record shelf</h2><span>{plural(logs.length, "album")}</span></div>
-      {!logs.length && <div className="empty">{own ? <><strong>Your shelf is empty.</strong>Find an album in <Link href="/albums">Search</Link> and log the day you listened. Every record you log is shelved here, month by month.</> : <><strong>{p.name} hasn&apos;t logged any albums yet.</strong></>}</div>}
-      {months.map(([k, rows]) => (
-        <VinylShelf key={k} label={`${k === "undated" ? "Undated" : new Date(k + "-15T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" })} · ${plural(rows.length, "record")}`}
+      {!logs.length && <div className="empty">{own ? <><strong>Your shelf is empty.</strong>Find an album in <Link href="/albums">Search</Link> and log the day you listened. Every record you rate is shelved here, newest first.</> : <><strong>{p.name} hasn&apos;t logged any albums yet.</strong></>}</div>}
+      {shelves.map((rows, i) => (
+        <VinylShelf key={i} label={i === 0 ? "Most recently rated" : undefined}
           records={rows.map((l) => ({ key: l.id, href: `/album/${l.album_id}`, album: l.album, title: l.album.title, sub: l.album.artist, rating: l.rating, liked: l.liked, date: l.listened_on }))} />
       ))}
     </>

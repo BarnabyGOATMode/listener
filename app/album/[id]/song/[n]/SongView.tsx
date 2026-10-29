@@ -27,7 +27,7 @@ export function SongView({ id, index }: { id: string; index: number }) {
     let live = true;
     getAlbum(id).then((a) => live && setAlbum(a), (e) => live && setError(e.message));
     const db = supabase();
-    db.from("song_reviews").select("*, profile:profiles(id,handle,name,kind)").eq("album_id", id).eq("track_index", index).order("posted_at", { ascending: false })
+    db.from("song_reviews").select("*, profile:profiles(*)").eq("album_id", id).eq("track_index", index).order("posted_at", { ascending: false })
       .then(({ data }) => live && setReviews((data as Row[]) ?? []));
     db.from("logs").select("user_id, track_ratings").eq("album_id", id).limit(500)
       .then(({ data }) => live && setTrackRatings((data ?? []).map((l) => ({ user_id: l.user_id as string, v: Number((l.track_ratings as Record<string, number>)?.[index]) || 0 })).filter((x) => x.v)));
@@ -60,7 +60,7 @@ export function SongView({ id, index }: { id: string; index: number }) {
     if (!user) return;
     setBusy(true);
     const row = { user_id: user.id, album_id: id, track_index: index, rating: rating || null, liked, review: review.trim(), listened_on: date || null, updated_at: new Date().toISOString() };
-    const { data, error } = await supabase().from("song_reviews").upsert(row, { onConflict: "user_id,album_id,track_index" }).select("*, profile:profiles(id,handle,name,kind)").single();
+    const { data, error } = await supabase().from("song_reviews").upsert(row, { onConflict: "user_id,album_id,track_index" }).select("*, profile:profiles(*)").single();
     setBusy(false);
     if (error) return toast("Couldn't save. Check your connection and try again.");
     setReviews((rs) => [data as Row, ...rs.filter((r) => r.user_id !== user.id)]);

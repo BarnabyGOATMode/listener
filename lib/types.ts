@@ -9,6 +9,7 @@ export type Profile = {
   genre: string;
   location: string;
   favorites: string[];
+  avatar_url?: string | null;
   look: Look;
   notif_seen_at: string;
   created_at: string;

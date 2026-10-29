@@ -4,11 +4,21 @@ import { useEffect, useState } from "react";
 import { hash } from "@/lib/format";
 import type { Album, Profile } from "@/lib/types";
 
-export function Avatar({ profile, large }: { profile: Pick<Profile, "id" | "name" | "handle"> | null | undefined; large?: boolean }) {
+type AvatarProfile = Pick<Profile, "id" | "name" | "handle"> & { avatar_url?: string | null };
+
+/** The person's uploaded photo, or their initial on a colour picked from their id. */
+export function AvatarFace({ profile }: { profile: AvatarProfile }) {
+  return profile.avatar_url
+    ? <img src={profile.avatar_url} alt="" loading="lazy" decoding="async" />
+    : <>{(profile.name.trim()[0] || "?").toUpperCase()}</>;
+}
+export const avatarColor = (id: string) => `hsl(${hash(id) % 360} 16% 44%)`;
+
+export function Avatar({ profile, large }: { profile: AvatarProfile | null | undefined; large?: boolean }) {
   if (!profile) return <span className={`av${large ? " lg" : ""}`} style={{ background: "#8a8172" }} aria-hidden="true">?</span>;
   return (
-    <Link href={`/u/${profile.handle}`} className={`av${large ? " lg" : ""}`} style={{ background: `hsl(${hash(profile.id) % 360} 16% 44%)` }} aria-hidden="true" tabIndex={-1}>
-      {(profile.name.trim()[0] || "?").toUpperCase()}
+    <Link href={`/u/${profile.handle}`} className={`av${large ? " lg" : ""}`} style={{ background: avatarColor(profile.id) }} aria-hidden="true" tabIndex={-1}>
+      <AvatarFace profile={profile} />
     </Link>
   );
 }

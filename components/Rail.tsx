@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { hash } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
 import type { Look } from "@/lib/types";
+import { AvatarFace, avatarColor } from "./bits";
 import { useOutside } from "./Header";
 import { useNotifications } from "./Notifications";
 import { applyLook, useSession } from "./Providers";
@@ -74,7 +74,7 @@ export function Rail() {
         {profile && <Item href="/albums" label="Log an album" icon={<Icon d={I.plus} />} />}
         {profile ? (
           <Link className="ri" href={`/u/${profile.handle}`} aria-label="Profile" aria-current={mine ? "page" : undefined}>
-            <span className="rail-av" style={{ background: `hsl(${hash(profile.id) % 360} 16% 44%)` }} aria-hidden="true">{(profile.name.trim()[0] || "?").toUpperCase()}</span>
+            <span className="rail-av" style={{ background: avatarColor(profile.id) }} aria-hidden="true"><AvatarFace profile={profile} /></span>
             <span className="tip">Profile</span>
           </Link>
         ) : !user && <Item href="/login" label="Sign in" icon={<Icon d={I.user} />} current={is("/login")} />}

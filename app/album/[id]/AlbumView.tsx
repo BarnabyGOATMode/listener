@@ -26,7 +26,7 @@ export function AlbumView({ id }: { id: string }) {
   useEffect(() => {
     let live = true;
     getAlbum(id).then((a) => live && setAlbum(a), (e) => live && setError(e.message));
-    supabase().from("logs").select("*, profile:profiles(id,handle,name,kind)").eq("album_id", id).order("posted_at", { ascending: false }).limit(300)
+    supabase().from("logs").select("*, profile:profiles(*)").eq("album_id", id).order("posted_at", { ascending: false }).limit(300)
       .then(({ data }) => live && setLogs((data as LogRow[]) ?? []));
     return () => { live = false; };
   }, [id]);
@@ -55,7 +55,7 @@ export function AlbumView({ id }: { id: string }) {
     if (!user) return;
     setBusy(true);
     const row = { user_id: user.id, album_id: id, ...draft, review: draft.review.trim(), updated_at: new Date().toISOString() };
-    const { data, error } = await supabase().from("logs").upsert(row, { onConflict: "user_id,album_id" }).select("*, profile:profiles(id,handle,name,kind)").single();
+    const { data, error } = await supabase().from("logs").upsert(row, { onConflict: "user_id,album_id" }).select("*, profile:profiles(*)").single();
     setBusy(false);
     if (error) return toast("Couldn't save. Check your connection and try again.");
     setLogs((ls) => [data as LogRow, ...ls.filter((l) => l.user_id !== user.id)]);

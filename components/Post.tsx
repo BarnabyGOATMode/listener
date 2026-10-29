@@ -61,7 +61,7 @@ export function Post({ item, likes: initialLikes, comments: initialComments }: {
     const body = text.trim();
     if (!body || !user) return;
     setText("");
-    const { data, error } = await db.from("comments").insert({ user_id: user.id, target_type: type, target_id: id, body }).select("*, profile:profiles(id,handle,name,kind)").single();
+    const { data, error } = await db.from("comments").insert({ user_id: user.id, target_type: type, target_id: id, body }).select("*, profile:profiles(*)").single();
     if (error) { setText(body); return toast("Couldn't post your comment. Try again."); }
     setComments((cs) => [...cs, data as CommentRow]);
   };

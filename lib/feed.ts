@@ -2,7 +2,7 @@
 import { supabase } from "./supabase/client";
 import type { Album, Comment, Log, Profile, SongReview, TargetType } from "./types";
 
-export type MiniProfile = Pick<Profile, "id" | "handle" | "name" | "kind">;
+export type MiniProfile = Pick<Profile, "id" | "handle" | "name" | "kind" | "avatar_url">;
 export type LogItem = { kind: "log"; at: string; key: string; profile: MiniProfile; album: Album; log: Log };
 export type SongItem = { kind: "song"; at: string; key: string; profile: MiniProfile; album: Album; song: SongReview };
 export type ReleaseItem = { kind: "release"; at: string; key: string; profile: MiniProfile; album: Album };
@@ -13,7 +13,7 @@ export type CommentRow = Comment & { profile: MiniProfile | null };
 export const targetOf = (it: FeedItem): [TargetType, string] =>
   it.kind === "log" ? ["log", it.log.id] : it.kind === "song" ? ["song", it.song.id] : ["release", it.album.id];
 
-const P = "profile:profiles(id,handle,name,kind)";
+const P = "profile:profiles(*)";
 
 /** One page of the feed, newest first, mixing album reviews, song reviews and artist releases. `people` limits it to those accounts. */
 export async function loadFeed({ people, before, limit = 15 }: { people?: string[] | null; before?: string; limit?: number }) {
