@@ -33,7 +33,7 @@ export function Cover({ album, size = 500 }: { album: Pick<Album, "id" | "title"
   const [failed, setFailed] = useState(false);
   const isMB = /^[0-9a-f-]{36}$/.test(album.id);
   const src = isMB
-    ? `/api/cover/${album.id}?s=${size}&a=${encodeURIComponent(album.artist)}&t=${encodeURIComponent(album.title)}`
+    ? `/api/cover/${album.id}?v=2&s=${size}&a=${encodeURIComponent(album.artist)}&t=${encodeURIComponent(album.title)}`
     : album.cover_url;
   useEffect(() => setFailed(false), [src]);
   return (
