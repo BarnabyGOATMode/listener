@@ -6,6 +6,7 @@ import { AlbumCard } from "@/components/AlbumCard";
 import { ArtistBadge, Avatar, Cover } from "@/components/bits";
 import { FollowButton } from "@/components/FollowButton";
 import { ProfileForm } from "@/components/ProfileForm";
+import { FaceOut, VinylShelf } from "@/components/VinylShelf";
 import { applyLook, useSession } from "@/components/Providers";
 import { plural, stars } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
@@ -57,10 +58,6 @@ export function ProfileView({ handle }: { handle: string }) {
     return () => { live = false; };
   }, [handle, me?.id]);
 
-  const rated = logs.filter((l) => l.rating);
-  const avg = rated.length ? rated.reduce((s, l) => s + Number(l.rating), 0) / rated.length : 0;
-  const buckets = Array.from({ length: 10 }, (_, i) => rated.filter((l) => Number(l.rating) === (i + 1) / 2).length);
-  const max = Math.max(1, ...buckets);
   const months = useMemo(() => {
     const g = new Map<string, LogRow[]>();
     for (const l of logs) { const k = l.listened_on?.slice(0, 7) ?? "undated"; g.set(k, [...(g.get(k) ?? []), l]); }
@@ -78,7 +75,7 @@ export function ProfileView({ handle }: { handle: string }) {
           <h1 className="display">{p.name}<ArtistBadge profile={p} /></h1>
           <div className="h">@{p.handle}{p.kind === "artist" && (p.genre || p.location) ? ` · ${[p.genre, p.location].filter(Boolean).join(" · ")}` : ""}</div>
           {p.bio && <p>{p.bio}</p>}
-          <div className="counts"><span><b>{logs.length}</b> logs</span><span><b>{counts.followers}</b> followers</span><span><b>{counts.following}</b> following</span></div>
+          <div className="counts"><span><b>{logs.length + songs.length}</b> {logs.length + songs.length === 1 ? "review" : "reviews"}</span><span><b>{counts.followers}</b> followers</span><span><b>{counts.following}</b> following</span></div>
           <div className="actions" style={{ marginTop: 12 }}>
             {own ? (
               <>
@@ -111,47 +108,26 @@ export function ProfileView({ handle }: { handle: string }) {
 
       {favs.length > 0 && (
         <>
-          <div className="section-h"><h2>Favorite albums</h2></div>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))", maxWidth: 640 }}>{favs.map((a) => <Link key={a.id} href={`/album/${a.id}`} title={a.title}><Cover album={a} size={250} /></Link>)}</div>
+          <div className="section-h"><h2>On display</h2><span>favorite albums</span></div>
+          <FaceOut albums={favs} />
         </>
       )}
-
-      <div className="statrow">
-        <div className="stat"><span className="label">Albums logged</span><div>{logs.length}</div></div>
-        <div className="stat"><span className="label">Songs reviewed</span><div>{songs.length}</div></div>
-        <div className="stat"><span className="label">Average rating</span><div>{rated.length ? avg.toFixed(2) : "–"}</div></div>
-        <div className="stat"><span className="label">Ratings</span>
-          <div className="hist" aria-label="Ratings spread from half a star to five stars">{buckets.map((b, i) => <i key={i} style={{ height: `${(b / max) * 100}%` }} title={`${(i + 1) / 2} stars: ${b}`} />)}</div>
-          <div className="hist-l"><span>½</span><span>★★★★★</span></div>
-        </div>
-      </div>
 
       {songs.length > 0 && (
         <>
-          <div className="section-h"><h2>Song reviews</h2><span>{songs.length}</span></div>
-          {songs.slice(0, 12).map((s) => (
-            <Link key={s.id} className="drow" href={`/album/${s.album_id}/song/${s.track_index + 1}`}>
-              <span className="day">{s.track_index + 1}</span><Cover album={s.album} size={250} />
-              <span className="t"><b>{s.album.tracks[s.track_index].title}</b><small>{s.album.title} · {s.album.artist}</small></span>
-              <span className="meta"><span className="stars">{stars(s.rating)}</span>{s.liked && <span className="heart">♥</span>}{s.review && "✎"}</span>
-            </Link>
-          ))}
+          <div className="section-h"><h2>Singles</h2><span>{plural(songs.length, "song review")}</span></div>
+          <VinylShelf size="single" records={songs.slice(0, 40).map((s) => ({
+            key: s.id, href: `/album/${s.album_id}/song/${s.track_index + 1}`, album: s.album,
+            title: s.album.tracks[s.track_index].title, sub: `${s.album.artist} · ${s.album.title}`, rating: s.rating, liked: s.liked, date: s.listened_on,
+          }))} />
         </>
       )}
 
-      <div className="section-h"><h2>Diary</h2><span>{plural(logs.length, "album")}</span></div>
-      {!logs.length && <div className="empty">{own ? <><strong>Your diary is empty.</strong>Find an album in <Link href="/albums">Search</Link> and log the day you listened. Every entry lands here, grouped by month.</> : <><strong>{p.name} hasn&apos;t logged any albums yet.</strong></>}</div>}
+      <div className="section-h"><h2>The record shelf</h2><span>{plural(logs.length, "album")}</span></div>
+      {!logs.length && <div className="empty">{own ? <><strong>Your shelf is empty.</strong>Find an album in <Link href="/albums">Search</Link> and log the day you listened. Every record you log is shelved here, month by month.</> : <><strong>{p.name} hasn&apos;t logged any albums yet.</strong></>}</div>}
       {months.map(([k, rows]) => (
-        <div key={k} style={{ marginTop: 26 }}>
-          <h3 className="label" style={{ marginBottom: 4 }}>{k === "undated" ? "Undated" : new Date(k + "-15T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h3>
-          {rows.map((l) => (
-            <Link key={l.id} className="drow" href={`/album/${l.album_id}`}>
-              <span className="day">{l.listened_on ? +l.listened_on.slice(8) : "–"}</span><Cover album={l.album} size={250} />
-              <span className="t"><b>{l.album.title}</b><small>{l.album.artist}{l.album.year ? ` · ${l.album.year}` : ""}</small></span>
-              <span className="meta"><span className="stars">{stars(l.rating)}</span>{l.liked && <span className="heart">♥</span>}{l.review && "✎"}</span>
-            </Link>
-          ))}
-        </div>
+        <VinylShelf key={k} label={`${k === "undated" ? "Undated" : new Date(k + "-15T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" })} · ${plural(rows.length, "record")}`}
+          records={rows.map((l) => ({ key: l.id, href: `/album/${l.album_id}`, album: l.album, title: l.album.title, sub: l.album.artist, rating: l.rating, liked: l.liked, date: l.listened_on }))} />
       ))}
     </>
   );

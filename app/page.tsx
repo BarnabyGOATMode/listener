@@ -95,20 +95,10 @@ export default function FeedPage() {
         <div ref={sentinel} className="more">{loading ? "Loading…" : next ? "" : items.length ? "You're all caught up." : ""}</div>
       </div>
 
-      <aside className="ig-rail">
-        {profile ? (
-          <>
-            <div className="ig-me">
-              <Avatar profile={profile} />
-              <div className="n"><Link className="ig-handle" href={`/u/${profile.handle}`}>{profile.handle}</Link><small>{profile.name}</small></div>
-              <Link className="ig-link" href={`/u/${profile.handle}?settings=1`}>Settings</Link>
-            </div>
-            <PeopleSearch />
-            <Suggestions compact />
-          </>
-        ) : ready && (
-          <div className="ig-me" style={{ display: "block" }}>
-            <p className="muted" style={{ margin: "0 0 12px" }}>Sign in to follow friends and see their reviews.</p>
+      <aside className="ig-rail" aria-label="Suggested for you">
+        {profile ? <Suggestions compact /> : ready && (
+          <div className="invite">
+            <p>Sign in to follow friends and see what they&apos;re listening to.</p>
             <Link className="btn small" href="/login?mode=up">Create an account</Link>
           </div>
         )}
@@ -146,20 +136,43 @@ function PeopleSearch() {
   );
 }
 
+/** People to follow: those who already follow you come first, then the newest members. Shows an invite prompt when there's no one yet. */
 function Suggestions({ compact }: { compact?: boolean }) {
-  const { user, following } = useSession();
-  const [list, setList] = useState<MiniProfile[]>([]);
+  const { user, following, toast } = useSession();
+  const [list, setList] = useState<(MiniProfile & { followsYou?: boolean })[] | null>(null);
   useEffect(() => {
-    supabase().from("profiles").select("id,handle,name,kind").order("created_at", { ascending: false }).limit(30)
-      .then(({ data }) => setList(((data as MiniProfile[]) ?? []).filter((p) => p.id !== user?.id && !following.has(p.id)).slice(0, compact ? 5 : 4)));
+    if (!user) return;
+    const db = supabase();
+    Promise.all([
+      db.from("follows").select("follower:profiles!follows_follower_id_fkey(id,handle,name,kind)").eq("followee_id", user.id).limit(30),
+      db.from("profiles").select("id,handle,name,kind").order("created_at", { ascending: false }).limit(40),
+    ]).then(([fans, recent]) => {
+      const followers = ((fans.data ?? []) as unknown as { follower: MiniProfile | null }[]).map((r) => r.follower).filter(Boolean) as MiniProfile[];
+      const seen = new Set<string>([user.id, ...following]);
+      const out: (MiniProfile & { followsYou?: boolean })[] = [];
+      for (const p of followers) if (!seen.has(p.id)) { seen.add(p.id); out.push({ ...p, followsYou: true }); }
+      for (const p of (recent.data as MiniProfile[]) ?? []) if (!seen.has(p.id)) { seen.add(p.id); out.push(p); }
+      setList(out.slice(0, compact ? 6 : 4));
+    });
     // Only suggest on first load so people don't vanish as you follow them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
-  if (!list.length) return null;
+  if (list === null || (!compact && !list.length)) return null;
+  const invite = async () => {
+    try { await navigator.clipboard.writeText(location.origin); toast("Invite link copied. Send it to a friend!"); }
+    catch { toast(`Share this link: ${location.origin}`); }
+  };
   return (
-    <div className="ig-suggest">
-      <div className="ig-suggest-h">Suggested for you</div>
-      {list.map((p) => <Person key={p.id} p={p} />)}
-    </div>
+    <section className={compact ? "friends" : "ig-suggest"}>
+      {compact ? <div className="friends-h"><h2>Suggested for you</h2><span>friends</span></div> : <div className="ig-suggest-h">Suggested for you</div>}
+      {compact && <PeopleSearch />}
+      {list.map((p) => <Person key={p.id} p={p} note={p.followsYou ? "Follows you" : undefined} />)}
+      {compact && (
+        <div className="invite">
+          <p>{list.length ? "Know someone who'd love this?" : "No one to suggest yet. listener is better with friends."}</p>
+          <button className="btn small ghost" onClick={invite}>Copy invite link</button>
+        </div>
+      )}
+    </section>
   );
 }
