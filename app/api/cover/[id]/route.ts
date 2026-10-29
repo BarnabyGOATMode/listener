@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { sameArtist, sameTitle as same } from "@/lib/match";
 
 /**
  * Album art. The Cover Art Archive (MusicBrainz's own) and Deezer are asked at the same time and the first real
@@ -11,13 +12,6 @@ import { NextResponse, type NextRequest } from "next/server";
 const FOUND = "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=2592000";
 const NONE = "public, max-age=3600, s-maxage=86400";
 const RETRY = "no-store";
-
-/** "the real thing" ≈ "Real Thing (Deluxe Edition)": lowercased, accents and brackets dropped, punctuation flattened. */
-const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/\(.*?\)|\[.*?\]/g, "")
-  .replace(/&/g, " and ").replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
-const same = (a: string, b: string) => { const x = norm(a), y = norm(b); return !!x && !!y && (x === y || x.startsWith(y) || y.startsWith(x)); };
-/** Artist credits differ between catalogues ("Jay-Z & Kanye West" vs "JAY-Z"), so match on the lead name. */
-const sameArtist = (a: string, b: string) => same(a, b) || same(a.split(/,|&| and | feat\.? | x /i)[0], b.split(/,|&| and | feat\.? | x /i)[0]);
 
 class Temporary extends Error {}
 const get = async (url: string, init?: RequestInit) => {
