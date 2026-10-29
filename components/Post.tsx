@@ -7,6 +7,7 @@ import { targetOf } from "@/lib/feed";
 import { supabase } from "@/lib/supabase/client";
 import { ArtistBadge, Avatar, Cover, ListenNow } from "./bits";
 import { useSession } from "./Providers";
+import { SendMusic } from "./SendMusic";
 
 const HEART = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>;
 const BUBBLE = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5a8.5 8 0 0 1-12.3 7.2L3.5 20l1.4-4.2A8 8 0 1 1 20.5 11.5z" /></svg>;
@@ -95,6 +96,8 @@ export function Post({ item, likes: initialLikes, comments: initialComments }: {
         <button className={`act${youLiked ? " on" : ""}`} aria-pressed={youLiked} disabled={!can} onClick={toggleLike} title={youLiked ? "Unlike" : "Like"}>{HEART}<span className="sr">{youLiked ? "Unlike" : "Like"}</span></button>
         <button className="act" disabled={!can} title="Comment" onClick={(e) => (e.currentTarget.closest(".ig")?.querySelector(".ig-add input") as HTMLInputElement | null)?.focus()}>{BUBBLE}<span className="sr">Comment</span></button>
         <ListenNow compact query={listen} />
+        <SendMusic icon label={item.kind === "song" ? (album.tracks[item.song.track_index]?.title ?? album.title) : album.title}
+          attachment={item.kind === "song" ? { type: "song", albumId: album.id, index: item.song.track_index } : { type: "album", albumId: album.id }} />
         <span className="ig-rating">{rating ? <span className="stars" aria-label={`${rating} stars`}>{stars(rating)}</span> : null}{liked && <span className="heart" aria-label="loved it"> ♥</span>}</span>
       </div>
 

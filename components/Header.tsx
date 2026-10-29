@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import { Avatar } from "./bits";
+import { useMessages } from "./Messages";
 import { useNotifications } from "./Notifications";
 import { useSession } from "./Providers";
 
@@ -27,6 +28,7 @@ export function Header() {
         <Link className="logo" href="/">listener</Link>
         <div className="tright">
           <MastheadSearch />
+          {profile && <MessagesLink />}
           {profile && <Bell />}
           {profile ? (
             <button className="acct" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
@@ -83,6 +85,17 @@ function MastheadSearch() {
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.6" cy="10.6" r="6.6" /><path d="m15.6 15.6 4.9 4.9" /></svg>
       <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search albums, songs, artists" aria-label="Search albums, songs and artists" />
     </form>
+  );
+}
+
+function MessagesLink() {
+  const { unread, requests } = useMessages();
+  const n = unread + requests;
+  return (
+    <Link className="bell" href="/messages" aria-label={n ? `Messages, ${n} new` : "Messages"}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3.5 10.6 13.9M21 3.5l-6.6 17-3.8-6.6L4 10.1z" /></svg>
+      {n > 0 && <span className="dot">{n > 9 ? "9+" : n}</span>}
+    </Link>
   );
 }
 

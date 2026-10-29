@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArtistBadge, Avatar, Cover, ListenNow, Rater } from "@/components/bits";
 import { useSession } from "@/components/Providers";
+import { SendMusic } from "@/components/SendMusic";
 import { getAlbum } from "@/lib/albums";
 import { fmtDate, plural, stars, today } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
@@ -89,6 +90,7 @@ export function SongView({ id, index }: { id: string; index: number }) {
           <div className="by">Track {index + 1} on <Link className="u" href={`/album/${id}`}>{album.title}</Link> · {album.artist}</div>
           <div className="actions" style={{ marginBottom: 16 }}>
             <ListenNow query={`${track.title} ${album.artist}`} />
+            <SendMusic label={track.title} attachment={{ type: "song", albumId: id, index }} />
             <Link className="btn ghost" href={`/album/${id}`}>View album</Link>
           </div>
           {user && profile ? (

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArtistBadge, Avatar, Cover, ListenNow, Rater } from "@/components/bits";
 import { useSession } from "@/components/Providers";
+import { SendMusic } from "@/components/SendMusic";
 import { forgetAlbum, getAlbum } from "@/lib/albums";
 import { duration, fmtDate, halfStar, plural, stars, today } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
@@ -95,6 +96,7 @@ export function AlbumView({ id }: { id: string }) {
           <div className="by">{album.source === "release" && album.owner_id ? <ArtistLink id={album.owner_id} name={album.artist} /> : album.artist_mbid ? <Link className="u" href={`/artist/${album.artist_mbid}`}>{album.artist}</Link> : album.artist}{album.genre ? ` · ${album.genre}` : ""}</div>
           <div className="actions" style={{ marginBottom: 16 }}>
             <ListenNow query={`${album.title} ${album.artist}`} />
+            <SendMusic label={album.title} attachment={{ type: "album", albumId: album.id }} />
             {album.source === "release" && album.owner_id === user?.id && <button className="btn ghost" onClick={deleteRelease}>Delete release</button>}
           </div>
           {user && profile ? (

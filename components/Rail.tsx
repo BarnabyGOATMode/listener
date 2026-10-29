@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { Look } from "@/lib/types";
 import { AvatarFace, avatarColor } from "./bits";
 import { useOutside } from "./Header";
+import { useMessages } from "./Messages";
 import { useNotifications } from "./Notifications";
 import { applyLook, useSession } from "./Providers";
 
@@ -19,6 +20,7 @@ const I = {
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5 7 7M17 17l1.5 1.5M5.5 18.5 7 17M17 7l1.5-1.5" /></>,
   moon: <path d="M19.8 14.6A8.2 8.2 0 1 1 9.4 4.2a6.6 6.6 0 0 0 10.4 10.4z" />,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  plane: <path d="M21 3.5 10.6 13.9M21 3.5l-6.6 17-3.8-6.6L4 10.1z" />,
 };
 const Icon = ({ d }: { d: React.ReactNode }) => <svg viewBox="0 0 24 24" aria-hidden="true">{d}</svg>;
 
@@ -33,6 +35,7 @@ function Item({ href, label, icon, current, onClick, badge, trigger }: { href?: 
 export function Rail() {
   const { profile, user } = useSession();
   const { unread, open, toggle, available } = useNotifications();
+  const { unread: unreadMessages, requests } = useMessages();
   const path = usePathname();
   const router = useRouter();
   const [dark, setDark] = useState(false);
@@ -71,6 +74,7 @@ export function Rail() {
         <Item href="/discover" label="Discover" icon={<Icon d={I.compass} />} current={is("/discover")} />
         <Item href="/albums" label="Search" icon={<Icon d={I.search} />} current={is("/albums")} />
         {available && <Item label="Notifications" icon={<Icon d={I.heart} />} onClick={() => toggle("rail")} badge={open ? 0 : unread} current={open === "rail"} trigger />}
+        {profile && <Item href="/messages" label="Messages" icon={<Icon d={I.plane} />} current={is("/messages")} badge={unreadMessages + requests} />}
         {profile && <Item href="/albums" label="Log an album" icon={<Icon d={I.plus} />} />}
         {profile ? (
           <Link className="ri" href={`/u/${profile.handle}`} aria-label="Profile" aria-current={mine ? "page" : undefined}>

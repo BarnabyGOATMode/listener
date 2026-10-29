@@ -91,3 +91,25 @@ export type ArtistPage = {
 
 /** A song found by search, with the album it appears on. */
 export type SongHit = { title: string; artist: string; artist_id: string | null; album_id: string; album: string; year: number | null; length_ms: number | null };
+
+export type Message = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  attachment_type: "album" | "song" | null;
+  attachment_id: string | null;
+  attachment_index: number | null;
+  created_at: string;
+};
+
+export type InboxRow = {
+  conversation_id: string;
+  other_id: string;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  my_status: "active" | "request" | "ignored";
+  my_last_read: string;
+  other_last_read: string;
+  unread: number;
+};

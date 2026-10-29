@@ -93,7 +93,7 @@ export function ProfileView({ handle }: { handle: string }) {
                 <button className="btn ghost small" onClick={() => setEditing(!editing)}>{editing ? "Close editor" : "Edit profile"}</button>
                 <button className="btn ghost small" aria-expanded={settings} onClick={() => setSettings(!settings)}>{settings ? "Close settings" : "Settings"}</button>
               </>
-            ) : <FollowButton id={p.id} />}
+            ) : <><FollowButton id={p.id} />{me && <Link className="btn ghost small" href={`/messages?to=${p.id}`}>Message</Link>}</>}
           </div>
         </div>
       </div>
