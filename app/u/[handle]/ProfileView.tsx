@@ -6,7 +6,7 @@ import { AlbumCard } from "@/components/AlbumCard";
 import { ArtistBadge, Avatar, Cover } from "@/components/bits";
 import { FollowButton } from "@/components/FollowButton";
 import { ProfileForm } from "@/components/ProfileForm";
-import { FaceOut, VinylShelf } from "@/components/VinylShelf";
+import { CoverWall, type WallTile } from "@/components/CoverWall";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { applyLook, useSession } from "@/components/Providers";
 import { plural, stars } from "@/lib/format";
@@ -14,7 +14,6 @@ import { supabase } from "@/lib/supabase/client";
 import type { Album, Log, Look, Profile, SongReview } from "@/lib/types";
 
 type LogRow = Log & { album: Album };
-const PER_SHELF = 18;
 type SongRow = SongReview & { album: Album };
 
 export function ProfileView({ handle }: { handle: string }) {
@@ -60,13 +59,21 @@ export function ProfileView({ handle }: { handle: string }) {
     return () => { live = false; };
   }, [handle, me?.id]);
 
-  // One bookcase, most recently rated first, continuing onto a new shelf every PER_SHELF records.
-  const shelves = useMemo(() => {
-    const sorted = [...logs].sort((a, b) => (b.updated_at || b.posted_at).localeCompare(a.updated_at || a.posted_at));
-    const out: LogRow[][] = [];
-    for (let i = 0; i < sorted.length; i += PER_SHELF) out.push(sorted.slice(i, i + PER_SHELF));
-    return out;
-  }, [logs]);
+  // The cover wall: favourites first (shown large), then every album and song review, most recently rated first.
+  const tiles = useMemo<WallTile[]>(() => {
+    const favIds = new Set(favs.map((a) => a.id));
+    const logFor = new Map(logs.map((l) => [l.album_id, l]));
+    const firstLine = (r: string) => r.split("\n")[0].slice(0, 120);
+    const favTiles: WallTile[] = favs.map((a) => {
+      const l = logFor.get(a.id);
+      return { key: `fav-${a.id}`, href: `/album/${a.id}`, album: a, title: a.title, sub: a.artist, rating: l?.rating, liked: l?.liked, review: l?.review ? firstLine(l.review) : undefined, favorite: true };
+    });
+    const rest = [
+      ...logs.filter((l) => !favIds.has(l.album_id)).map((l) => ({ at: l.updated_at || l.posted_at, t: { key: l.id, href: `/album/${l.album_id}`, album: l.album, title: l.album.title, sub: l.album.artist, rating: l.rating, liked: l.liked, review: l.review ? firstLine(l.review) : undefined } })),
+      ...songs.map((s) => ({ at: s.updated_at || s.posted_at, t: { key: s.id, href: `/album/${s.album_id}/song/${s.track_index + 1}`, album: s.album, title: s.album.tracks[s.track_index].title, sub: `${s.album.artist} · ${s.album.title}`, rating: s.rating, liked: s.liked, review: s.review ? firstLine(s.review) : undefined, song: true } })),
+    ].sort((a, b) => b.at.localeCompare(a.at)).map((x) => x.t as WallTile);
+    return [...favTiles, ...rest];
+  }, [logs, songs, favs]);
 
   if (p === undefined) return <p className="more">Loading profile…</p>;
   if (p === null) return <div className="empty"><strong>No one goes by @{handle}.</strong>Check the spelling, or <Link href="/">search for people from the feed</Link>.</div>;
@@ -111,29 +118,12 @@ export function ProfileView({ handle }: { handle: string }) {
         </>
       )}
 
-      {favs.length > 0 && (
-        <>
-          <div className="section-h"><h2>On display</h2><span>favorite albums</span></div>
-          <FaceOut albums={favs} />
-        </>
+      <div className="section-h"><h2>The wall</h2><span>{plural(logs.length, "album")}{songs.length ? ` · ${plural(songs.length, "song")}` : ""}{favs.length ? " · favorites shown large" : ""}</span></div>
+      {tiles.length ? <CoverWall tiles={tiles} /> : (
+        <div className="empty">{own
+          ? <><strong>Your wall is empty.</strong>Find an album in <Link href="/albums">Search</Link> and rate it. Every album and song you review goes up here, newest first.</>
+          : <><strong>{p.name} hasn&apos;t reviewed anything yet.</strong></>}</div>
       )}
-
-      {songs.length > 0 && (
-        <>
-          <div className="section-h"><h2>Singles</h2><span>{plural(songs.length, "song review")}</span></div>
-          <VinylShelf size="single" records={songs.slice(0, 40).map((s) => ({
-            key: s.id, href: `/album/${s.album_id}/song/${s.track_index + 1}`, album: s.album,
-            title: s.album.tracks[s.track_index].title, sub: `${s.album.artist} · ${s.album.title}`, rating: s.rating, liked: s.liked, date: s.listened_on,
-          }))} />
-        </>
-      )}
-
-      <div className="section-h"><h2>The record shelf</h2><span>{plural(logs.length, "album")}</span></div>
-      {!logs.length && <div className="empty">{own ? <><strong>Your shelf is empty.</strong>Find an album in <Link href="/albums">Search</Link> and log the day you listened. Every record you rate is shelved here, newest first.</> : <><strong>{p.name} hasn&apos;t logged any albums yet.</strong></>}</div>}
-      {shelves.map((rows, i) => (
-        <VinylShelf key={i} label={i === 0 ? "Most recently rated" : undefined}
-          records={rows.map((l) => ({ key: l.id, href: `/album/${l.album_id}`, album: l.album, title: l.album.title, sub: l.album.artist, rating: l.rating, liked: l.liked, date: l.listened_on }))} />
-      ))}
     </>
   );
 }
