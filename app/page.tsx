@@ -87,8 +87,8 @@ export default function FeedPage() {
         {!loading && !items.length && !error && (
           <div className="empty">
             {effective === "following"
-              ? <><strong>Your feed is quiet.</strong>Follow some listeners, or switch to Everyone. When you log an album from <Link href="/albums">Albums</Link>, it posts here too.</>
-              : <><strong>No one has posted yet.</strong>Find an album in <Link href="/albums">Albums</Link>, rate it, and yours will be the first review.</>}
+              ? <><strong>Your feed is quiet.</strong>Follow some listeners, or switch to Everyone. When you log an album from <Link href="/albums">Search</Link>, it posts here too.</>
+              : <><strong>No one has posted yet.</strong>Find an album in <Link href="/albums">Search</Link>, rate it, and yours will be the first review.</>}
           </div>
         )}
         {error && <p className="error">{error} <button className="linkish" onClick={() => page()}><u>Try again</u></button></p>}
@@ -113,7 +113,7 @@ export default function FeedPage() {
           </div>
         )}
         <footer className="ig-foot">
-          <Link href="/albums">Albums</Link> · <Link href="/discover">Discover</Link> · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link>
+          <Link href="/albums">Search</Link> · <Link href="/discover">Discover</Link> · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link>
           <div>© {new Date().getFullYear()} listener · Album data from MusicBrainz</div>
         </footer>
       </aside>

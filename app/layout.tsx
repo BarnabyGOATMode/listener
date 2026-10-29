@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Libre_Franklin, Newsreader } from "next/font/google";
 import { Header } from "@/components/Header";
+import { NotificationsProvider } from "@/components/Notifications";
 import { Providers } from "@/components/Providers";
+import { Rail } from "@/components/Rail";
 import "./globals.css";
 
 const serif = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], weight: ["400", "500"], variable: "--font-serif", display: "swap" });
@@ -22,8 +24,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body>
         <Providers>
-          <Header />
-          <main className="wrap">{children}</main>
+          <NotificationsProvider>
+            <Rail />
+            <Header />
+            <main className="wrap">{children}</main>
+          </NotificationsProvider>
         </Providers>
       </body>
     </html>

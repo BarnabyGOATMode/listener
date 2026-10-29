@@ -140,7 +140,7 @@ export function ProfileView({ handle }: { handle: string }) {
       )}
 
       <div className="section-h"><h2>Diary</h2><span>{plural(logs.length, "album")}</span></div>
-      {!logs.length && <div className="empty">{own ? <><strong>Your diary is empty.</strong>Find an album in <Link href="/albums">Albums</Link> and log the day you listened. Every entry lands here, grouped by month.</> : <><strong>{p.name} hasn&apos;t logged any albums yet.</strong></>}</div>}
+      {!logs.length && <div className="empty">{own ? <><strong>Your diary is empty.</strong>Find an album in <Link href="/albums">Search</Link> and log the day you listened. Every entry lands here, grouped by month.</> : <><strong>{p.name} hasn&apos;t logged any albums yet.</strong></>}</div>}
       {months.map(([k, rows]) => (
         <div key={k} style={{ marginTop: 26 }}>
           <h3 className="label" style={{ marginBottom: 4 }}>{k === "undated" ? "Undated" : new Date(k + "-15T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h3>

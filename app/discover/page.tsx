@@ -56,7 +56,7 @@ export default function DiscoverPage() {
           <Shelf title="Loved by people you follow" note="rated 4★ or more">{s.loved.map(({ album, n }) => <AlbumCard key={album.id} album={album} note={`Loved by ${n} ${n === 1 ? "person" : "people"} you follow`} />)}</Shelf>
           <Shelf title="Popular on listener" note="most logged">{s.popular.map((a) => <AlbumCard key={a.id} album={a} />)}</Shelf>
           <Shelf title="Highest rated" note="community average">{s.top.map(({ album, avg }) => <AlbumCard key={album.id} album={album} sub={`★ ${avg.toFixed(1)}`} />)}</Shelf>
-          {!s.picks.length && !s.popular.length && <div className="empty"><strong>Nothing to recommend yet.</strong>Picks appear once people start logging albums. Start in <Link href="/albums">Albums</Link>.</div>}
+          {!s.picks.length && !s.popular.length && <div className="empty"><strong>Nothing to recommend yet.</strong>Picks appear once people start logging albums. Start in <Link href="/albums">Search</Link>.</div>}
           <p className="notice" style={{ marginTop: 32 }}>These picks come from a simple first version that looks at the genres you rate highly. Smarter recommendations are on the way.</p>
         </>
       )}
