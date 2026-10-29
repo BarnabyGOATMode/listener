@@ -7,7 +7,10 @@ import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Cover } from "@/components/bits";
 import { duration, plural } from "@/lib/format";
+import type { TopResult } from "@/lib/rank";
 import type { Album, SearchHit, SongHit } from "@/lib/types";
+
+type Results = { top: TopResult; albums: SearchHit[]; songs: SongHit[]; songsFirst: boolean; error?: string };
 
 export default function AlbumsPage() {
   return <Suspense><SearchPage /></Suspense>;
@@ -18,7 +21,7 @@ function SearchPage() {
   const [q, setQ] = useState(param);
   // Searching again from the masthead while already here updates the box.
   useEffect(() => setQ(param), [param]);
-  const [hits, setHits] = useState<{ local: SearchHit[]; results: SearchHit[]; songs?: SongHit[]; error?: string } | null>(null);
+  const [hits, setHits] = useState<Results | null>(null);
   const [busy, setBusy] = useState(false);
   const [recent, setRecent] = useState<Album[]>([]);
   const [adding, setAdding] = useState(false);
@@ -37,7 +40,7 @@ function SearchPage() {
         const r = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { signal: ctl.signal });
         setHits(await r.json());
       } catch (e) {
-        if ((e as Error).name !== "AbortError") setHits({ local: [], results: [], songs: [], error: "Search isn't reachable right now. Check your connection." });
+        if ((e as Error).name !== "AbortError") setHits({ top: null, albums: [], songs: [], songsFirst: false, error: "Search isn't reachable right now. Check your connection." });
       } finally { setBusy(false); }
     }, 400);
     return () => { clearTimeout(t); ctl.abort(); };
@@ -56,11 +59,15 @@ function SearchPage() {
       {adding && <AddAlbum />}
       {hits ? (
         <>
-          {hits.local.length > 0 && <Section title="On listener" note={`${hits.local.length}`} items={hits.local} />}
-          {!!hits.songs?.length && <Songs songs={hits.songs} />}
-          <Section title="Albums" note={busy ? "searching…" : plural(hits.results.length, "result")} items={hits.results} />
+          {hits.top && <Top top={hits.top} />}
+          {hits.songsFirst && !!hits.songs.length && <Songs songs={hits.songs} skip={hits.top} />}
+          {(() => {
+            const rest = hits.albums.filter((a) => !(hits.top?.kind === "album" && hits.top.album.id === a.id));
+            return rest.length ? <Section title={hits.top?.kind === "album" ? "More albums" : "Albums"} note={busy ? "searching…" : plural(rest.length, "result")} items={rest} /> : null;
+          })()}
+          {!hits.songsFirst && !!hits.songs.length && <Songs songs={hits.songs} skip={hits.top} />}
           {hits.error && <p className="error">{hits.error}</p>}
-          {!busy && !hits.local.length && !hits.results.length && !hits.songs?.length && !hits.error && (
+          {!busy && !hits.albums.length && !hits.songs.length && !hits.error && (
             <div className="empty"><strong>Nothing matched “{q.trim()}”.</strong>Check the spelling, try the artist&apos;s name, or add it yourself with “Can&apos;t find it?”.</div>
           )}
         </>
@@ -85,7 +92,34 @@ function Section({ title, note, items }: { title: string; note: string; items: S
   );
 }
 
-function Songs({ songs }: { songs: SongHit[] }) {
+/** The single best match for the search, shown large. */
+function Top({ top }: { top: NonNullable<TopResult> }) {
+  const isSong = top.kind === "song";
+  const href = isSong ? `/album/${top.song.album_id}/find?title=${encodeURIComponent(top.song.title)}` : `/album/${top.album.id}`;
+  const cover = isSong ? { id: top.song.album_id, title: top.song.album, artist: top.song.artist, cover_url: null } : top.album;
+  const title = isSong ? top.song.title : top.album.title;
+  const artist = isSong ? top.song.artist : top.album.artist;
+  const artistId = isSong ? top.song.artist_id : top.album.artist_id;
+  return (
+    <>
+      <div className="section-h"><h2>Top result</h2></div>
+      <div className="top-result">
+        <Link href={href} tabIndex={-1} aria-hidden="true"><Cover album={cover} size={500} /></Link>
+        <div className="t">
+          <span className="kicker">{isSong ? "Song" : top.album.type === "Single" || top.album.type === "EP" ? top.album.type : "Album"}</span>
+          <Link className="top-title" href={href}>{title}</Link>
+          <div className="by">{artistId ? <Link className="u" href={`/artist/${artistId}`}>{artist}</Link> : artist}
+            {isSong ? <> · from <Link className="u" href={`/album/${top.song.album_id}`}>{top.song.album}</Link></> : top.album.year ? ` · ${top.album.year}` : ""}</div>
+          <div className="actions"><Link className="btn" href={href}>{isSong ? "Rate this song" : "Rate this album"}</Link></div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Songs({ songs: all, skip }: { songs: SongHit[]; skip: TopResult }) {
+  const songs = all.filter((s) => !(skip?.kind === "song" && skip.song.album_id === s.album_id && skip.song.title === s.title)).slice(0, 8);
+  if (!songs.length) return null;
   return (
     <>
       <div className="section-h"><h2>Songs</h2><span>{songs.length}</span></div>
