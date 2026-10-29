@@ -3,13 +3,15 @@ import { sameArtist, sameTitle as same } from "@/lib/match";
 
 /**
  * Album art. The Cover Art Archive (MusicBrainz's own) and Deezer are asked at the same time and the first real
- * cover wins; Apple's catalog is the last resort. Redirects to the image; 404 means the page should draw
- * generated art instead.
+ * cover wins; Apple's catalog is the last resort. The image itself is fetched here and served from listener's own
+ * address, so browsers never talk to archive.org, Deezer or Apple directly. That keeps covers working behind ad
+ * blockers and filtered networks, and avoids the plain-http links the Cover Art Archive sometimes hands out.
+ * 404 means the page should draw generated art instead.
  *
  * Only a definite "no cover anywhere" is cached (for a day). If any source timed out or was rate-limited, the
  * 404 isn't cached, so the next visit tries again rather than remembering a temporary failure.
  */
-const FOUND = "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=2592000";
+const FOUND = "public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=2592000, immutable";
 const NONE = "public, max-age=3600, s-maxage=86400";
 const RETRY = "no-store";
 
@@ -40,7 +42,8 @@ async function deezer(artist: string, title: string, size: number): Promise<stri
     return pick(body.data);
   };
   const hit = (await run(`artist:"${artist.replace(/"/g, "")}" album:"${title.replace(/"/g, "")}"`)) ?? (await run(`${artist} ${title}`));
-  return hit ? (size > 300 ? hit.cover_xl || hit.cover_big : hit.cover_big || hit.cover_medium) ?? null : null;
+  // cover_big is 500px and cover_medium 250px: the sizes the page asks for.
+  return hit ? (size > 300 ? hit.cover_big || hit.cover_xl : hit.cover_medium || hit.cover_big) ?? null : null;
 }
 
 async function itunes(artist: string, title: string, size: number): Promise<string | null> {
@@ -77,6 +80,15 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/cover/[i
   let url = await firstCover(fast, flag);
   if (!url && artist && title) url = await firstCover([itunes(artist, title, size)], flag);
 
-  if (url) return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": FOUND } });
+  if (url) {
+    try {
+      const img = await fetch(url.replace(/^http:\/\//, "https://"), { signal: AbortSignal.timeout(8000) });
+      const type = img.headers.get("content-type") ?? "";
+      if (img.ok && type.startsWith("image/")) {
+        return new NextResponse(img.body, { headers: { "Content-Type": type, "Cache-Control": FOUND, "X-Cover-Source": new URL(url).hostname } });
+      }
+    } catch { /* fall through: treat as temporary so it's retried */ }
+    temporary = true;
+  }
   return new NextResponse(null, { status: 404, headers: { "Cache-Control": temporary ? RETRY : NONE } });
 }
