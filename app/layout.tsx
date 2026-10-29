@@ -12,7 +12,7 @@ const sans = Libre_Franklin({ subsets: ["latin"], weight: ["400", "500", "600", 
 
 export const metadata: Metadata = {
   title: { default: "listener", template: "%s · listener" },
-  description: "Keep a diary of every album you hear. Rate records and songs, write reviews, and follow what your friends are listening to.",
+  description: "Rate and review albums and songs, and see what your friends are listening to.",
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 

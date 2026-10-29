@@ -57,8 +57,8 @@ export default function FeedPage() {
       <div className="ig-main">
         {!user && ready && (
           <div className="ig-welcome">
-            <h1 className="display">Keep a diary of <em>every album</em> you hear.</h1>
-            <p className="lede" style={{ fontSize: 17 }}>Rate records and songs, write what they meant to you, and follow what your friends are listening to.</p>
+            <h1 className="display">Reviews from people you follow</h1>
+            <p className="lede" style={{ fontSize: 17 }}>Rate and review albums and songs, and see what your friends are listening to.</p>
             <div className="actions"><Link className="btn" href="/login?mode=up">Create an account</Link><Link className="btn ghost" href="/login">Sign in</Link></div>
           </div>
         )}

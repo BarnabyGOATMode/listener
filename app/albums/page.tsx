@@ -48,12 +48,9 @@ function SearchPage() {
 
   return (
     <>
-      <div className="intro">
-        <h1 className="display">Keep a diary of <em>every album</em> you hear.</h1>
-        <p className="lede">Search any record ever released. Rate it, rate its songs, and write what it meant to you.</p>
-      </div>
-      <div className="actions" style={{ paddingBlock: "20px 4px" }}>
-        <input className="input" style={{ flex: "1 1 260px" }} type="search" placeholder="Search albums, EPs or artists" aria-label="Search albums, EPs or artists" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={!param} />
+      <div className="pagehead"><h1 className="display">Search</h1></div>
+      <div className="actions" style={{ paddingBlock: "16px 4px" }}>
+        <input className="input" style={{ flex: "1 1 260px" }} type="search" placeholder="Albums, songs or artists" aria-label="Search albums, songs or artists" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={!param} />
         <button className="btn ghost" onClick={() => setAdding(!adding)} aria-expanded={adding}>Can&apos;t find it?</button>
       </div>
       {adding && <AddAlbum />}
@@ -73,9 +70,9 @@ function SearchPage() {
         </>
       ) : (
         <>
-          <div className="section-h"><h2>Recently opened on listener</h2><span>{busy ? "searching…" : `${recent.length} records`}</span></div>
+          <div className="section-h"><h2>Recently opened</h2><span>{busy ? "searching…" : `${recent.length} records`}</span></div>
           {recent.length ? <div className="grid">{recent.map((a) => <AlbumCard key={a.id} album={a} />)}</div>
-            : <div className="empty"><strong>The crates are empty.</strong>Search for an album above. Every album anyone opens is saved here.</div>}
+            : <div className="empty"><strong>No albums yet.</strong>Albums appear here once someone opens them.</div>}
         </>
       )}
       <p className="hint" style={{ marginTop: 40 }}>Album data from <a href="https://musicbrainz.org" target="_blank" rel="noopener noreferrer">MusicBrainz</a>. Covers from the <a href="https://coverartarchive.org" target="_blank" rel="noopener noreferrer">Cover Art Archive</a>.</p>
