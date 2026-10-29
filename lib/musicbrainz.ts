@@ -1,5 +1,5 @@
 import "server-only";
-import type { SearchHit, Track } from "./types";
+import type { ArtistPage, SearchHit, Track } from "./types";
 
 const API = "https://musicbrainz.org/ws/2";
 const UA = `listener/0.1 ( ${process.env.MUSICBRAINZ_CONTACT || "https://github.com/listener-app"} )`;
@@ -20,7 +20,9 @@ async function mb<T>(path: string): Promise<T> {
   throw new Error("MusicBrainz is busy; try again in a moment");
 }
 
-type Credit = { name: string; joinphrase?: string }[];
+type Credit = { name: string; joinphrase?: string; artist?: { id: string; name: string } }[];
+/** The lead artist's MusicBrainz id, used for artist pages. */
+const leadArtist = (c?: Credit) => c?.[0]?.artist?.id ?? null;
 const creditName = (c?: Credit) => (c ?? []).map((a) => a.name + (a.joinphrase ?? "")).join("").trim() || "Unknown artist";
 const yearOf = (d?: string) => (d && /^\d{4}/.test(d) ? Number(d.slice(0, 4)) : null);
 const lucene = (s: string) => s.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, " ").trim();
@@ -36,6 +38,7 @@ export async function searchAlbums(q: string): Promise<SearchHit[]> {
     id: g.id,
     title: g.title,
     artist: creditName(g["artist-credit"]),
+    artist_id: leadArtist(g["artist-credit"]),
     year: yearOf(g["first-release-date"]),
     type: g["primary-type"] ?? "Album",
     cover_url: coverUrl(g.id, 250),
@@ -62,10 +65,45 @@ export async function lookupAlbum(releaseGroupId: string) {
     source: "musicbrainz" as const,
     title: g.title,
     artist: creditName(g["artist-credit"]),
+    artist_mbid: leadArtist(g["artist-credit"]) ?? "",
     year: yearOf(g["first-release-date"]),
     genre: genre ? genre.replace(/\b\w/g, (c) => c.toUpperCase()) : "",
     cover_url: coverUrl(g.id, 500),
     tracks,
     mb_release_id: pick?.id ?? null,
+  };
+}
+
+type MBArtist = {
+  id: string; name: string; type?: string; country?: string; disambiguation?: string;
+  area?: { name: string }; "begin-area"?: { name: string }; "life-span"?: { begin?: string; end?: string; ended?: boolean };
+  genres?: { name: string; count: number }[];
+};
+
+/** An artist and their discography, newest first, grouped the way record shops shelve them. */
+export async function lookupArtist(artistId: string): Promise<ArtistPage | null> {
+  if (!/^[0-9a-f-]{36}$/.test(artistId)) return null;
+  const a = await mb<MBArtist>(`artist/${artistId}?inc=genres`);
+  const groups: RG[] = [];
+  for (let offset = 0; offset < 300; offset += 100) {
+    const page = await mb<{ "release-groups": RG[]; "release-group-count": number }>(`release-group?artist=${artistId}&limit=100&offset=${offset}`);
+    groups.push(...(page["release-groups"] ?? []));
+    if (offset + 100 >= (page["release-group-count"] ?? 0)) break;
+  }
+  const shelf = (g: RG): ArtistPage["releases"][number]["shelf"] =>
+    g["secondary-types"]?.length ? "other" : g["primary-type"] === "Album" ? "album" : g["primary-type"] === "EP" ? "ep" : g["primary-type"] === "Single" ? "single" : "other";
+  const releases = groups
+    .map((g) => ({ id: g.id, title: g.title, year: yearOf(g["first-release-date"]), date: g["first-release-date"] ?? "", type: [g["primary-type"], ...(g["secondary-types"] ?? [])].filter(Boolean).join(" · ") || "Release", shelf: shelf(g), cover_url: coverUrl(g.id, 250) }))
+    .sort((x, y) => (y.date || "0").localeCompare(x.date || "0"));
+  const span = a["life-span"];
+  return {
+    id: a.id,
+    name: a.name,
+    kind: a.type ?? "",
+    area: a.area?.name ?? a["begin-area"]?.name ?? "",
+    disambiguation: a.disambiguation ?? "",
+    active: span?.begin ? `${span.begin.slice(0, 4)}–${span.ended ? (span.end?.slice(0, 4) ?? "") : "present"}` : "",
+    genres: [...(a.genres ?? [])].sort((x, y) => y.count - x.count).slice(0, 4).map((g) => g.name.replace(/\b\w/g, (c) => c.toUpperCase())),
+    releases: releases.map(({ date: _d, ...r }) => r),
   };
 }

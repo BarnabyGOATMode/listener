@@ -10,11 +10,11 @@ export async function GET(request: NextRequest) {
   const safe = q.replace(/[,()%*\\]/g, " ");
   const db = await serverSupabase();
   const [local, remote] = await Promise.allSettled([
-    db.from("albums").select("id,title,artist,year,cover_url,source").or(`title.ilike.%${safe}%,artist.ilike.%${safe}%`).limit(12),
+    db.from("albums").select("*").or(`title.ilike.%${safe}%,artist.ilike.%${safe}%`).limit(12),
     searchAlbums(q),
   ]);
   const localHits: SearchHit[] = local.status === "fulfilled" && local.value.data
-    ? local.value.data.map((a) => ({ id: a.id, title: a.title, artist: a.artist, year: a.year, cover_url: a.cover_url, type: a.source === "release" ? "Artist release" : a.source === "custom" ? "Added by a listener" : "Album", local: true }))
+    ? local.value.data.map((a) => ({ id: a.id, title: a.title, artist: a.artist, artist_id: a.artist_mbid ?? null, year: a.year, cover_url: a.cover_url, type: a.source === "release" ? "Artist release" : a.source === "custom" ? "Added by a listener" : "Album", local: true }))
     : [];
   const seen = new Set(localHits.map((h) => h.id));
   const results = remote.status === "fulfilled" ? remote.value.filter((h) => !seen.has(h.id)) : [];

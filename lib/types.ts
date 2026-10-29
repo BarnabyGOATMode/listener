@@ -26,6 +26,7 @@ export type Album = {
   cover_url: string | null;
   tracks: Track[];
   owner_id: string | null;
+  artist_mbid?: string | null;
   created_at: string;
 };
 
@@ -74,4 +75,15 @@ export type Notification = {
 };
 
 /** A search result before it is cached locally. */
-export type SearchHit = { id: string; title: string; artist: string; year: number | null; type: string; cover_url: string | null; local?: boolean };
+export type SearchHit = { id: string; title: string; artist: string; artist_id?: string | null; year: number | null; type: string; cover_url: string | null; local?: boolean };
+
+export type ArtistPage = {
+  id: string;
+  name: string;
+  kind: string;
+  area: string;
+  disambiguation: string;
+  active: string;
+  genres: string[];
+  releases: { id: string; title: string; year: number | null; type: string; shelf: "album" | "ep" | "single" | "other"; cover_url: string }[];
+};

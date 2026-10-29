@@ -92,7 +92,7 @@ export function AlbumView({ id }: { id: string }) {
         <div style={{ minWidth: 0 }}>
           {album.source === "release" && <div className="kicker">Artist release</div>}
           <h1 className="display">{album.title}</h1>
-          <div className="by">{album.source === "release" && album.owner_id ? <ArtistLink id={album.owner_id} name={album.artist} /> : album.artist}{album.genre ? ` · ${album.genre}` : ""}</div>
+          <div className="by">{album.source === "release" && album.owner_id ? <ArtistLink id={album.owner_id} name={album.artist} /> : album.artist_mbid ? <Link className="u" href={`/artist/${album.artist_mbid}`}>{album.artist}</Link> : album.artist}{album.genre ? ` · ${album.genre}` : ""}</div>
           <div className="actions" style={{ marginBottom: 16 }}>
             <ListenNow query={`${album.title} ${album.artist}`} />
             {album.source === "release" && album.owner_id === user?.id && <button className="btn ghost" onClick={deleteRelease}>Delete release</button>}
