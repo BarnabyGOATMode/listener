@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/bits";
+import { LiveFeed } from "@/components/LiveFeed";
 import { Person } from "@/components/People";
 import { Post } from "@/components/Post";
 import { useSession } from "@/components/Providers";
@@ -96,7 +97,9 @@ export default function FeedPage() {
       </div>
 
       <aside className="ig-rail" aria-label="Suggested for you">
-        {profile ? <Suggestions compact /> : ready && (
+        {profile && <Suggestions compact />}
+        <LiveFeed />
+        {!profile && ready && (
           <div className="invite">
             <p>Sign in to follow friends and see what they&apos;re listening to.</p>
             <Link className="btn small" href="/login?mode=up">Create an account</Link>
@@ -166,7 +169,9 @@ function Suggestions({ compact }: { compact?: boolean }) {
     <section className={compact ? "friends" : "ig-suggest"}>
       {compact ? <div className="friends-h"><h2>Suggested for you</h2><span>friends</span></div> : <div className="ig-suggest-h">Suggested for you</div>}
       {compact && <PeopleSearch />}
-      {list.map((p) => <Person key={p.id} p={p} note={p.followsYou ? "Follows you" : undefined} />)}
+      <div className={compact ? undefined : "sugg-row"}>
+        {list.map((p) => <Person key={p.id} p={p} note={p.followsYou ? "Follows you" : undefined} />)}
+      </div>
       {compact && (
         <div className="invite">
           <p>{list.length ? "Know someone who'd love this?" : "No one to suggest yet. listener is better with friends."}</p>

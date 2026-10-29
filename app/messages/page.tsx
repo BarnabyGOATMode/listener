@@ -123,6 +123,7 @@ function Thread({ conv }: { conv: Conversation }) {
   const [blocked, setBlocked] = useState(false);
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const db = supabase();
   const other = conv.other;
@@ -231,7 +232,7 @@ function Thread({ conv }: { conv: Conversation }) {
             <div key={m.id}>
               {gap && <div className="dm-time">{new Date(m.created_at).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}</div>}
               <div className={`bubble-row${mine ? " mine" : ""}`}>
-                <div className="bubble-col">
+                <div className={`bubble-col${picked === m.id ? " picked" : ""}`} onClick={mine ? (e) => { if (!(e.target as HTMLElement).closest("a, button")) setPicked(picked === m.id ? null : m.id); } : undefined}>
                   {m.attachment_type && <MusicCard album={albums.get(m.attachment_id!)} index={m.attachment_type === "song" ? m.attachment_index : null} mine={mine} />}
                   {m.body && <p className="bubble">{m.body}</p>}
                   {mine && <button className="unsend" onClick={() => unsend(m.id)}>{confirm === m.id ? "Tap again to unsend" : "Unsend"}</button>}

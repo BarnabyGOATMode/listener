@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { MessagesProvider } from "@/components/Messages";
 import { NotificationsProvider } from "@/components/Notifications";
 import { Providers } from "@/components/Providers";
+import { MobileTabs } from "@/components/MobileTabs";
 import { Rail } from "@/components/Rail";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Rail />
               <Header />
               <main className="wrap">{children}</main>
+              <MobileTabs />
             </MessagesProvider>
           </NotificationsProvider>
         </Providers>
