@@ -1,6 +1,6 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { AlbumCard } from "@/components/AlbumCard";
 import { useSession } from "@/components/Providers";
 import { supabase } from "@/lib/supabase/client";
@@ -10,7 +10,14 @@ import { duration, plural } from "@/lib/format";
 import type { Album, SearchHit, SongHit } from "@/lib/types";
 
 export default function AlbumsPage() {
-  const [q, setQ] = useState("");
+  return <Suspense><SearchPage /></Suspense>;
+}
+
+function SearchPage() {
+  const param = useSearchParams().get("q") ?? "";
+  const [q, setQ] = useState(param);
+  // Searching again from the masthead while already here updates the box.
+  useEffect(() => setQ(param), [param]);
   const [hits, setHits] = useState<{ local: SearchHit[]; results: SearchHit[]; songs?: SongHit[]; error?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [recent, setRecent] = useState<Album[]>([]);
@@ -43,7 +50,7 @@ export default function AlbumsPage() {
         <p className="lede">Search any record ever released. Rate it, rate its songs, and write what it meant to you.</p>
       </div>
       <div className="actions" style={{ paddingBlock: "20px 4px" }}>
-        <input className="input" style={{ flex: "1 1 260px" }} type="search" placeholder="Search albums, EPs or artists" aria-label="Search albums, EPs or artists" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+        <input className="input" style={{ flex: "1 1 260px" }} type="search" placeholder="Search albums, EPs or artists" aria-label="Search albums, EPs or artists" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={!param} />
         <button className="btn ghost" onClick={() => setAdding(!adding)} aria-expanded={adding}>Can&apos;t find it?</button>
       </div>
       {adding && <AddAlbum />}

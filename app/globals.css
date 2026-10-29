@@ -442,3 +442,20 @@ a.u, button.u { background: none; border: 0; padding: 0; font: 600 inherit var(-
 .rail-menu a:hover, .rail-menu button:hover { background: var(--raised); }
 @media (min-width: 900px) { body { padding-left: 72px; } }
 @media (max-width: 899px) { .rail { display: none; } }
+
+/* ---------- masthead when the side bar is showing: date · wordmark · search, over a double rule ---------- */
+.hsearch { display: none; }
+@media (min-width: 900px) {
+  .nav, .tright .bell, .tright .acct, .tright > .btn { display: none; }
+  .bar { align-items: center; }
+  .bar::after { content: ""; grid-column: 1 / -1; margin-top: 6px; border-bottom: 3px double var(--fg); }
+  .dateline { padding-bottom: 0; }
+  .tright { padding-bottom: 0; }
+  .menu { display: none; }
+  .hsearch { display: flex; align-items: center; gap: 8px; width: min(260px, 22vw); padding: 0 0 6px; border-bottom: 1px solid var(--line); transition: border-color .25s var(--ease); }
+  .hsearch:focus-within { border-bottom-color: var(--fg); }
+  .hsearch svg { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; }
+  .hsearch input { flex: 1; min-width: 0; border: 0; padding: 4px 0; background: transparent; font: 400 14px var(--sans); color: var(--fg); outline: none; }
+  .hsearch input::placeholder { color: var(--muted); }
+  .hsearch input::-webkit-search-cancel-button { display: none; }
+}

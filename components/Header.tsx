@@ -26,6 +26,7 @@ export function Header() {
         <div className="dateline">{date}<span>Reviews of every record</span></div>
         <Link className="logo" href="/">listener</Link>
         <div className="tright">
+          <MastheadSearch />
           {profile && <Bell />}
           {profile ? (
             <button className="acct" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
@@ -69,6 +70,20 @@ export function useOutside(ref: React.RefObject<HTMLElement | null>, onOutside: 
     document.addEventListener("keydown", k);
     return () => { document.removeEventListener("mousedown", h); document.removeEventListener("keydown", k); };
   }, [ref, onOutside, ignore]);
+}
+
+/** The masthead's search box (wider screens only): Enter opens the Search page with results. */
+function MastheadSearch() {
+  const router = useRouter();
+  const path = usePathname();
+  const [q, setQ] = useState("");
+  useEffect(() => { if (!path.startsWith("/albums")) setQ(""); }, [path]);
+  return (
+    <form className="hsearch" role="search" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t) router.push(`/albums?q=${encodeURIComponent(t)}`); }}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.6" cy="10.6" r="6.6" /><path d="m15.6 15.6 4.9 4.9" /></svg>
+      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search albums, songs, artists" aria-label="Search albums, songs and artists" />
+    </form>
+  );
 }
 
 function Bell() {
