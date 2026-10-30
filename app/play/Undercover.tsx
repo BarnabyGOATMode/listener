@@ -199,11 +199,12 @@ function ScrambledCover({ album, stage, onMissing }: { album: GameAlbum; stage: 
       const s = STAGES[Math.min(stage, STAGES.length - 1)];
       // Average the cover down to a small grid (in two steps, so each square is a fair average of its patch).
       const mid = document.createElement("canvas"); mid.width = mid.height = 96;
-      const m = mid.getContext("2d")!; m.imageSmoothingQuality = "high"; m.drawImage(img, 0, 0, 96, 96);
+      const m = mid.getContext("2d", { willReadFrequently: true })!; m.imageSmoothingQuality = "high"; m.drawImage(img, 0, 0, 96, 96);
       const small = document.createElement("canvas"); small.width = small.height = s.grid;
       const sc = small.getContext("2d", { willReadFrequently: true })!; sc.imageSmoothingQuality = "high"; sc.drawImage(mid, 0, 0, s.grid, s.grid);
       const data = sc.getImageData(0, 0, s.grid, s.grid);
-      data.data.set(scramble(data.data, s.grid, s, hash(album.title + album.artist) + stage));
+      const detail = m.getImageData(0, 0, 96, 96).data;
+      data.data.set(scramble(data.data, s.grid, s, hash(album.title + album.artist) + stage, detail));
       sc.putImageData(data, 0, 0);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(small, 0, 0, size, size);

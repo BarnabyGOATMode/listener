@@ -89,13 +89,16 @@ export function suggest(q: string, exclude: string[] = []) {
 }
 
 // ---------------------------------------------------------------- the scrambled cover
-/** How scrambled the cover is before each guess: grid size, share of tiles shuffled, and how far colours are turned. */
+/**
+ * How scrambled the cover is before each guess: how many squares across, and what share of them are shuffled.
+ * Colours are always the cover's real ones; it only gets more detailed and more in place.
+ */
 export const STAGES = [
-  { grid: 8, shuffle: 1, hue: 0, palette: true },   // only the cover's main colours, in random squares
-  { grid: 7, shuffle: 1, hue: 150 },
-  { grid: 12, shuffle: 0.55, hue: 90 },
-  { grid: 20, shuffle: 0.2, hue: 40 },
-  { grid: 36, shuffle: 0, hue: 0 },
+  { grid: 8, shuffle: 1, palette: true },  // only the cover's main colours, in proportion, in random squares
+  { grid: 6, shuffle: 1 },
+  { grid: 11, shuffle: 0.55 },
+  { grid: 19, shuffle: 0.2 },
+  { grid: 34, shuffle: 0, exact: true },  // fine enough that squares are true averages, so photos keep their shading
 ] as const;
 export const MAX_GUESSES = STAGES.length;
 
@@ -103,46 +106,54 @@ function rng(seed: number) {
   return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-function rotateHue(r: number, g: number, b: number, deg: number): [number, number, number] {
-  if (!deg) return [r, g, b];
-  // Rotation around the grey axis in RGB space: keeps brightness, turns every colour round the wheel.
-  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), k = (1 - c) / 3, q = Math.sqrt(1 / 3) * s;
-  const m = [c + k, k - q, k + q];
-  const f = (x: number) => Math.max(0, Math.min(255, Math.round(x)));
-  return [f(r * m[0] + g * m[1] + b * m[2]), f(r * m[2] + g * m[0] + b * m[1]), f(r * m[1] + g * m[2] + b * m[0])];
-}
-
 /** The most common colours in a grid of pixels, by simple k-means, with how much of the cover each takes up. */
 export function palette(px: Uint8ClampedArray, k = 6, seed = 1) {
   const n = px.length / 4, r = rng(seed);
-  let centres = Array.from({ length: k }, () => { const i = Math.floor(r() * n) * 4; return [px[i], px[i + 1], px[i + 2]]; });
+  const dist = (p: number, c: number[]) => (px[p * 4] - c[0]) ** 2 + (px[p * 4 + 1] - c[1]) ** 2 + (px[p * 4 + 2] - c[2]) ** 2;
+  // k-means++ start: each new centre is picked far from the ones already chosen, so distinct colours aren't merged.
+  const start = Math.floor(r() * n) * 4;
+  let centres = [[px[start], px[start + 1], px[start + 2]]];
+  while (centres.length < k) {
+    const d = Array.from({ length: n }, (_, p) => Math.min(...centres.map((c) => dist(p, c))));
+    const total = d.reduce((a, b) => a + b, 0);
+    if (!total) break;
+    let pick = r() * total, p = 0;
+    while (p < n - 1 && (pick -= d[p]) > 0) p++;
+    centres.push([px[p * 4], px[p * 4 + 1], px[p * 4 + 2]]);
+  }
+  k = centres.length;
   const owner = new Int32Array(n);
   for (let iter = 0; iter < 8; iter++) {
     const sums = centres.map(() => [0, 0, 0, 0]);
     for (let p = 0; p < n; p++) {
       let best = 0, bd = Infinity;
-      for (let c = 0; c < k; c++) { const d = (px[p * 4] - centres[c][0]) ** 2 + (px[p * 4 + 1] - centres[c][1]) ** 2 + (px[p * 4 + 2] - centres[c][2]) ** 2; if (d < bd) { bd = d; best = c; } }
+      for (let c = 0; c < k; c++) { const d = dist(p, centres[c]); if (d < bd) { bd = d; best = c; } }
       owner[p] = best; const s = sums[best]; s[0] += px[p * 4]; s[1] += px[p * 4 + 1]; s[2] += px[p * 4 + 2]; s[3]++;
     }
     centres = sums.map((s, c) => (s[3] ? [s[0] / s[3], s[1] / s[3], s[2] / s[3]] : centres[c]));
   }
   const counts = new Array(k).fill(0);
   for (let p = 0; p < n; p++) counts[owner[p]]++;
-  return centres.map((c, i) => ({ rgb: c.map(Math.round) as [number, number, number], share: counts[i] / n })).filter((c) => c.share > 0).sort((a, b) => b.share - a.share);
+  return centres.map((c, i) => ({ rgb: c.map(Math.round) as [number, number, number], share: counts[i] / n })).filter((c) => c.share >= 0.03).sort((a, b) => b.share - a.share);
+  // Under 3% is usually a blend where two colours meet, not a colour on the cover, so it's left out.
 }
 
 /**
- * Scrambles a grid×grid sample of the cover (RGBA pixels) for one stage: turns the colours, then shuffles some of the
- * squares. The palette stage replaces the picture with its main colours in proportion, scattered at random.
+ * Scrambles a grid×grid sample of the cover (RGBA pixels) for one stage by shuffling some of its squares. The palette
+ * stage replaces the picture with its main colours in proportion, scattered at random; `detail` is a larger sample of
+ * the cover to find those colours in, so they match the real cover closely.
  */
-export function scramble(px: Uint8ClampedArray, grid: number, stage: (typeof STAGES)[number], seed: number) {
+export function scramble(px: Uint8ClampedArray, grid: number, stage: (typeof STAGES)[number], seed: number, detail: Uint8ClampedArray = px) {
   const n = grid * grid, out = new Uint8ClampedArray(px.length), r = rng(seed);
   const cells: [number, number, number][] = [];
+  const pal = palette(detail, 8, seed);
   if ("palette" in stage && stage.palette) {
-    const pal = palette(px, 6, seed);
     pal.forEach((c, i) => { const count = i === pal.length - 1 ? n - cells.length : Math.round(c.share * n); for (let j = 0; j < count && cells.length < n; j++) cells.push(c.rgb); });
   } else {
-    for (let i = 0; i < n; i++) cells.push(rotateHue(px[i * 4], px[i * 4 + 1], px[i * 4 + 2], stage.hue));
+    // A big square straddling two colours would average into a shade that isn't on the cover, so each square takes
+    // the nearest of the cover's real colours instead.
+    const near = (c: number[]) => pal.reduce((best, p) => ((p.rgb[0] - c[0]) ** 2 + (p.rgb[1] - c[1]) ** 2 + (p.rgb[2] - c[2]) ** 2 < (best[0] - c[0]) ** 2 + (best[1] - c[1]) ** 2 + (best[2] - c[2]) ** 2 ? p.rgb : best), pal[0].rgb);
+    for (let i = 0; i < n; i++) { const c: [number, number, number] = [px[i * 4], px[i * 4 + 1], px[i * 4 + 2]]; cells.push("exact" in stage || !pal.length ? c : near(c)); }
   }
   // Shuffle a share of the squares among themselves; the rest stay where they belong.
   const moving = Array.from({ length: n }, (_, i) => i).filter(() => r() < stage.shuffle);
