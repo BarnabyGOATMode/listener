@@ -341,7 +341,8 @@ a.u, button.u { background: none; border: 0; padding: 0; font: 600 inherit var(-
 .ig-layout { display: grid; grid-template-columns: minmax(0, 470px) 300px; gap: 72px; justify-content: center; padding-top: 28px; }
 .ig-main { min-width: 0; }
 /* The side column stays pinned beside the feed as it scrolls; if it's taller than the window it scrolls on its own. */
-.ig-rail { position: sticky; top: 24px; align-self: start; padding-top: 8px; display: grid; gap: 22px; max-height: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.ig-rail { position: sticky; top: 24px; align-self: start; padding-top: 8px; display: grid; gap: 22px; max-height: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  padding-inline: 10px; margin-inline: -10px; } /* breathing room so the live dot's pulse isn't clipped */
 .ig-rail::-webkit-scrollbar { display: none; }
 .ig-narrow { display: none; }
 .ig-welcome { display: grid; gap: 12px; padding-bottom: 24px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
