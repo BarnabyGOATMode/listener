@@ -67,15 +67,14 @@ export function LiveFeed() {
 
   const load = useCallback(async () => {
     const db = supabase();
-    const [joined, logs, songs, likes, comments, follows, lists, added, releases] = await Promise.all([
+    const [joined, logs, songs, likes, comments, follows, lists, releases] = await Promise.all([
       db.from("profiles").select("id,handle,name,kind,avatar_url,created_at").order("created_at", { ascending: false }).limit(N),
       db.from("logs").select(`id, posted_at, rating, liked, review, ${PROFILE}, album:albums(*)`).order("posted_at", { ascending: false }).limit(N),
       db.from("song_reviews").select(`id, posted_at, rating, liked, review, track_index, ${PROFILE}, album:albums(*)`).order("posted_at", { ascending: false }).limit(N),
       db.from("likes").select(`user_id, target_type, target_id, created_at, ${PROFILE}`).order("created_at", { ascending: false }).limit(N),
       db.from("comments").select(`id, user_id, target_type, target_id, body, created_at, ${PROFILE}`).order("created_at", { ascending: false }).limit(N),
       db.from("follows").select("follower_id, followee_id, created_at, follower:profiles!follows_follower_id_fkey(id,handle,name,kind,avatar_url), followee:profiles!follows_followee_id_fkey(id,handle,name,kind,avatar_url)").order("created_at", { ascending: false }).limit(N),
-      db.from("lists").select(`id, title, created_at, ${PROFILE}, items:list_items(position, album:albums(*))`).order("created_at", { ascending: false }).limit(N),
-      db.from("list_items").select("list_id, album_id, created_at, album:albums(*), list:lists(id, title, user_id, created_at, profile:profiles(id,handle,name,kind,avatar_url))").order("created_at", { ascending: false }).limit(N),
+      db.from("lists").select(`id, title, created_at, updated_at, ${PROFILE}, items:list_items(position, created_at, album:albums(*))`).order("updated_at", { ascending: false }).limit(N),
       db.from("albums").select("*, profile:profiles!albums_owner_id_fkey(id,handle,name,kind,avatar_url)").eq("source", "release").order("created_at", { ascending: false }).limit(N),
     ]);
     const reactions = [...((likes.data as unknown as Reaction[]) ?? []), ...((comments.data as unknown as Reaction[]) ?? [])];
@@ -104,14 +103,14 @@ export function LiveFeed() {
     type Follow = { follower_id: string; followee_id: string; created_at: string; follower: MiniProfile | null; followee: MiniProfile | null };
     for (const f of (follows.data as unknown as Follow[]) ?? []) if (f.follower && f.followee)
       list.push({ key: `f-${f.follower_id}-${f.followee_id}`, at: f.created_at, who: f.follower, text: <>followed <b>@{f.followee.handle}</b></>, href: `/u/${f.followee.handle}`, other: f.followee });
-    type ListNew = ListT & { created_at: string };
-    for (const l of (lists.data as unknown as ListNew[]) ?? []) if (l.profile)
-      list.push({ key: `n-${l.id}`, at: l.created_at, who: l.profile, text: <>started a list <i>{l.title}</i></>, href: `/list/${l.id}`, album: firstCover(l), tag: firstCover(l) ? undefined : "List" });
-    type Added = { list_id: string; album_id: string; created_at: string; album: Album | null; list: { id: string; title: string; created_at: string; profile: MiniProfile | null } | null };
-    for (const a of (added.data as unknown as Added[]) ?? []) {
-      // The first album on a brand-new list is already covered by "started a list".
-      if (!a.album || !a.list?.profile || Math.abs(Date.parse(a.created_at) - Date.parse(a.list.created_at)) < 60_000) continue;
-      list.push({ key: `a-${a.list_id}-${a.album_id}`, at: a.created_at, who: a.list.profile, text: <>added <i>{a.album.title}</i> to <i>{a.list.title}</i></>, href: `/list/${a.list.id}`, album: a.album });
+    // One line per list, however many albums went on it: "created a new list" while it's being filled in on the
+    // day it was made, "updated their list" when albums are added later.
+    type ListNew = Omit<ListT, "items"> & { created_at: string; items?: { position: number; created_at: string; album: Album | null }[] };
+    for (const l of (lists.data as unknown as ListNew[]) ?? []) {
+      if (!l.profile) continue;
+      const last = (l.items ?? []).reduce((m, i) => (i.created_at > m ? i.created_at : m), l.created_at);
+      const isNew = Date.parse(last) - Date.parse(l.created_at) < 864e5;
+      list.push({ key: `n-${l.id}-${last}`, at: last, who: l.profile, text: <>{isNew ? "created a new list" : "updated their list"} <i>{l.title}</i></>, href: `/list/${l.id}`, album: firstCover(l), tag: firstCover(l) ? undefined : "List" });
     }
     for (const r of (releases.data as (Album & { profile: MiniProfile | null })[]) ?? []) if (r.profile)
       list.push({ key: `r-${r.id}`, at: r.created_at, who: r.profile, text: <>released <i>{r.title}</i></>, href: `/album/${r.id}`, album: r });
