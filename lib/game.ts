@@ -5,58 +5,87 @@ import { norm } from "./match";
  * Undercover: guess the album from its cover, blurred. Everyone gets the same album each day;
  * each wrong guess (or skip) brings the cover a step closer to the real thing.
  */
-export type GameAlbum = { title: string; artist: string; year: number };
+export type GameAlbum = { title: string; artist: string; year: number; aka?: string[] };
 
-// Well-known records across eras and genres. Covers are found by title and artist, the same way album pages find them.
-const POOL: [string, string, number][] = [
-  ["In Rainbows", "Radiohead", 2007], ["OK Computer", "Radiohead", 1997], ["Kid A", "Radiohead", 2000],
-  ["Blonde", "Frank Ocean", 2016], ["Channel Orange", "Frank Ocean", 2012],
-  ["To Pimp a Butterfly", "Kendrick Lamar", 2015], ["good kid, m.A.A.d city", "Kendrick Lamar", 2012], ["DAMN.", "Kendrick Lamar", 2017],
-  ["My Beautiful Dark Twisted Fantasy", "Kanye West", 2010], ["The College Dropout", "Kanye West", 2004], ["Graduation", "Kanye West", 2007], ["Yeezus", "Kanye West", 2013],
-  ["Rumours", "Fleetwood Mac", 1977], ["Abbey Road", "The Beatles", 1969], ["Sgt. Pepper's Lonely Hearts Club Band", "The Beatles", 1967], ["Revolver", "The Beatles", 1966],
-  ["The Dark Side of the Moon", "Pink Floyd", 1973], ["Wish You Were Here", "Pink Floyd", 1975], ["The Wall", "Pink Floyd", 1979],
-  ["Nevermind", "Nirvana", 1991], ["In Utero", "Nirvana", 1993],
-  ["Thriller", "Michael Jackson", 1982], ["Off the Wall", "Michael Jackson", 1979], ["Bad", "Michael Jackson", 1987],
-  ["Purple Rain", "Prince", 1984], ["Back in Black", "AC/DC", 1980], ["Led Zeppelin IV", "Led Zeppelin", 1971],
-  ["The Velvet Underground & Nico", "The Velvet Underground", 1967], ["London Calling", "The Clash", 1979], ["Never Mind the Bollocks, Here's the Sex Pistols", "Sex Pistols", 1977],
-  ["Unknown Pleasures", "Joy Division", 1979], ["The Queen Is Dead", "The Smiths", 1986], ["Disintegration", "The Cure", 1989],
-  ["Kind of Blue", "Miles Davis", 1959], ["A Love Supreme", "John Coltrane", 1965], ["Blue", "Joni Mitchell", 1971], ["Pet Sounds", "The Beach Boys", 1966],
-  ["What's Going On", "Marvin Gaye", 1971], ["Songs in the Key of Life", "Stevie Wonder", 1976], ["Born to Run", "Bruce Springsteen", 1975],
-  ["Ziggy Stardust", "David Bowie", 1972], ["Blackstar", "David Bowie", 2016], ["Hounds of Love", "Kate Bush", 1985],
-  ["Discovery", "Daft Punk", 2001], ["Random Access Memories", "Daft Punk", 2013], ["Homework", "Daft Punk", 1997],
-  ["Currents", "Tame Impala", 2015], ["Lonerism", "Tame Impala", 2012], ["Is This It", "The Strokes", 2001], ["AM", "Arctic Monkeys", 2013],
-  ["Whatever People Say I Am, That's What I'm Not", "Arctic Monkeys", 2006], ["Funeral", "Arcade Fire", 2004], ["Hot Fuss", "The Killers", 2004],
-  ["American Idiot", "Green Day", 2004], ["Dookie", "Green Day", 1994], ["The Black Parade", "My Chemical Romance", 2006],
-  ["Parachutes", "Coldplay", 2000], ["A Rush of Blood to the Head", "Coldplay", 2002], ["(What's the Story) Morning Glory?", "Oasis", 1995],
-  ["Definitely Maybe", "Oasis", 1994], ["Parklife", "Blur", 1994], ["Dummy", "Portishead", 1994], ["Mezzanine", "Massive Attack", 1998],
-  ["Ready to Die", "The Notorious B.I.G.", 1994], ["Illmatic", "Nas", 1994], ["The Miseducation of Lauryn Hill", "Lauryn Hill", 1998],
-  ["Enter the Wu-Tang (36 Chambers)", "Wu-Tang Clan", 1993], ["The Chronic", "Dr. Dre", 1992], ["The Marshall Mathers LP", "Eminem", 2000],
-  ["The Blueprint", "Jay-Z", 2001], ["Aquemini", "OutKast", 1998], ["Speakerboxxx/The Love Below", "OutKast", 2003],
-  ["Madvillainy", "Madvillain", 2004], ["Donuts", "J Dilla", 2006], ["Igor", "Tyler, the Creator", 2019], ["Flower Boy", "Tyler, the Creator", 2017],
-  ["Call Me If You Get Lost", "Tyler, the Creator", 2021], ["Astroworld", "Travis Scott", 2018], ["Rodeo", "Travis Scott", 2015],
-  ["Take Care", "Drake", 2011], ["Nothing Was the Same", "Drake", 2013], ["Views", "Drake", 2016],
-  ["After Hours", "The Weeknd", 2020], ["Starboy", "The Weeknd", 2016], ["Beauty Behind the Madness", "The Weeknd", 2015],
-  ["Lemonade", "Beyoncé", 2016], ["Renaissance", "Beyoncé", 2022], ["Ctrl", "SZA", 2017], ["SOS", "SZA", 2022],
-  ["Back to Black", "Amy Winehouse", 2006], ["21", "Adele", 2011], ["25", "Adele", 2015],
-  ["1989", "Taylor Swift", 2014], ["Folklore", "Taylor Swift", 2020], ["Red", "Taylor Swift", 2012], ["Midnights", "Taylor Swift", 2022],
-  ["Melodrama", "Lorde", 2017], ["Pure Heroine", "Lorde", 2013], ["When We All Fall Asleep, Where Do We Go?", "Billie Eilish", 2019],
-  ["Future Nostalgia", "Dua Lipa", 2020], ["Sour", "Olivia Rodrigo", 2021], ["Brat", "Charli XCX", 2024], ["Short n' Sweet", "Sabrina Carpenter", 2024],
-  ["Hit Me Hard and Soft", "Billie Eilish", 2024], ["The Rise and Fall of a Midwest Princess", "Chappell Roan", 2023], ["GNX", "Kendrick Lamar", 2024],
-  ["Born This Way", "Lady Gaga", 2011], ["The Fame", "Lady Gaga", 2008], ["Teenage Dream", "Katy Perry", 2010],
-  ["Un Verano Sin Ti", "Bad Bunny", 2022], ["Motomami", "Rosalía", 2022], ["Punisher", "Phoebe Bridgers", 2020],
-  ["Carrie & Lowell", "Sufjan Stevens", 2015], ["For Emma, Forever Ago", "Bon Iver", 2007], ["Fleet Foxes", "Fleet Foxes", 2008],
-  ["Since I Left You", "The Avalanches", 2000], ["Loveless", "My Bloody Valentine", 1991], ["Doolittle", "Pixies", 1989],
-  ["Siamese Dream", "The Smashing Pumpkins", 1993], ["Ten", "Pearl Jam", 1991], ["Appetite for Destruction", "Guns N' Roses", 1987],
-  ["Master of Puppets", "Metallica", 1986], ["Paranoid", "Black Sabbath", 1970], ["Hybrid Theory", "Linkin Park", 2000],
-  ["Californication", "Red Hot Chili Peppers", 1999], ["Elephant", "The White Stripes", 2003], ["Vampire Weekend", "Vampire Weekend", 2008],
-  ["Plastic Beach", "Gorillaz", 2010], ["Demon Days", "Gorillaz", 2005], ["Lust for Life", "Lana Del Rey", 2017], ["Born to Die", "Lana Del Rey", 2012],
-  ["Norman Fucking Rockwell!", "Lana Del Rey", 2019], ["Nectar", "Joji", 2020], ["Bloom", "Beach House", 2012],
-  ["Lover", "Taylor Swift", 2019], ["Thank U, Next", "Ariana Grande", 2019], ["Positions", "Ariana Grande", 2020],
-  ["Scorpion", "Drake", 2018], ["Culture", "Migos", 2017], ["Utopia", "Travis Scott", 2023], ["Heroes & Villains", "Metro Boomin", 2022],
-  ["Mr. Morale & the Big Steppers", "Kendrick Lamar", 2022], ["Malibu", "Anderson .Paak", 2016], ["Awaken, My Love!", "Childish Gambino", 2016],
-  ["Coloring Book", "Chance the Rapper", 2016], ["Swimming", "Mac Miller", 2018], ["Circles", "Mac Miller", 2020],
-];
-export const ALBUMS: GameAlbum[] = POOL.map(([title, artist, year]) => ({ title, artist, year }));
+/**
+ * Five of the best-known albums from every year since 1956, when the LP (and the album cover) really took off.
+ * Covers are found by title and artist, the same way album pages find them. A third entry lists other names people
+ * know an album by ("Ziggy Stardust"), which also count as a right answer.
+ */
+type Entry = [title: string, artist: string, aka?: string[]];
+const BY_YEAR: Record<number, Entry[]> = {
+  1956: [["Elvis Presley", "Elvis Presley"], ["Songs for Swingin' Lovers!", "Frank Sinatra"], ["Calypso", "Harry Belafonte"], ["Ella and Louis", "Ella Fitzgerald & Louis Armstrong"], ["Ellington at Newport", "Duke Ellington"]],
+  1957: [["Here's Little Richard", "Little Richard"], ["The \"Chirping\" Crickets", "The Crickets", ["Chirping Crickets"]], ["Birth of the Cool", "Miles Davis"], ["Saxophone Colossus", "Sonny Rollins"], ["Brilliant Corners", "Thelonious Monk"]],
+  1958: [["Blue Train", "John Coltrane"], ["Somethin' Else", "Cannonball Adderley"], ["Come Fly with Me", "Frank Sinatra"], ["Lady in Satin", "Billie Holiday"], ["Milestones", "Miles Davis"]],
+  1959: [["Kind of Blue", "Miles Davis"], ["Time Out", "The Dave Brubeck Quartet"], ["Mingus Ah Um", "Charles Mingus"], ["The Shape of Jazz to Come", "Ornette Coleman"], ["Moanin'", "Art Blakey & The Jazz Messengers"]],
+  1960: [["Giant Steps", "John Coltrane"], ["Sketches of Spain", "Miles Davis"], ["Elvis Is Back!", "Elvis Presley"], ["Joan Baez", "Joan Baez"], ["Ella in Berlin: Mack the Knife", "Ella Fitzgerald", ["Ella in Berlin"]]],
+  1961: [["Blue Hawaii", "Elvis Presley"], ["Judy at Carnegie Hall", "Judy Garland"], ["My Favorite Things", "John Coltrane"], ["Breakfast at Tiffany's", "Henry Mancini"], ["Sunday at the Village Vanguard", "Bill Evans Trio"]],
+  1962: [["Modern Sounds in Country and Western Music", "Ray Charles", ["Modern Sounds"]], ["Bob Dylan", "Bob Dylan"], ["Jazz Samba", "Stan Getz & Charlie Byrd"], ["Surfin' Safari", "The Beach Boys"], ["Green Onions", "Booker T. & the M.G.'s"]],
+  1963: [["Please Please Me", "The Beatles"], ["With the Beatles", "The Beatles"], ["The Freewheelin' Bob Dylan", "Bob Dylan", ["Freewheelin"]], ["Live at the Apollo", "James Brown"], ["A Christmas Gift for You from Phil Spector", "Phil Spector", ["A Christmas Gift for You"]]],
+  1964: [["A Hard Day's Night", "The Beatles"], ["Getz/Gilberto", "Stan Getz & João Gilberto"], ["The Times They Are a-Changin'", "Bob Dylan"], ["The Rolling Stones", "The Rolling Stones"], ["Beatles for Sale", "The Beatles"]],
+  1965: [["Highway 61 Revisited", "Bob Dylan"], ["Rubber Soul", "The Beatles"], ["Bringing It All Back Home", "Bob Dylan"], ["A Love Supreme", "John Coltrane"], ["Help!", "The Beatles"]],
+  1966: [["Revolver", "The Beatles"], ["Pet Sounds", "The Beach Boys"], ["Blonde on Blonde", "Bob Dylan"], ["Aftermath", "The Rolling Stones"], ["Sounds of Silence", "Simon & Garfunkel"]],
+  1967: [["Sgt. Pepper's Lonely Hearts Club Band", "The Beatles", ["Sgt Pepper", "Sgt Peppers"]], ["The Velvet Underground & Nico", "The Velvet Underground"], ["Are You Experienced", "The Jimi Hendrix Experience"], ["The Doors", "The Doors"], ["I Never Loved a Man the Way I Love You", "Aretha Franklin"]],
+  1968: [["Electric Ladyland", "The Jimi Hendrix Experience"], ["Beggars Banquet", "The Rolling Stones"], ["Astral Weeks", "Van Morrison"], ["Bookends", "Simon & Garfunkel"], ["Cheap Thrills", "Big Brother & the Holding Company"]],
+  1969: [["Abbey Road", "The Beatles"], ["Led Zeppelin II", "Led Zeppelin"], ["Let It Bleed", "The Rolling Stones"], ["In the Court of the Crimson King", "King Crimson"], ["Tommy", "The Who"]],
+  1970: [["Bridge over Troubled Water", "Simon & Garfunkel"], ["Let It Be", "The Beatles"], ["Paranoid", "Black Sabbath"], ["After the Gold Rush", "Neil Young"], ["All Things Must Pass", "George Harrison"]],
+  1971: [["What's Going On", "Marvin Gaye"], ["Led Zeppelin IV", "Led Zeppelin"], ["Blue", "Joni Mitchell"], ["Tapestry", "Carole King"], ["Sticky Fingers", "The Rolling Stones"]],
+  1972: [["The Rise and Fall of Ziggy Stardust and the Spiders from Mars", "David Bowie", ["Ziggy Stardust"]], ["Exile on Main St.", "The Rolling Stones", ["Exile on Main Street"]], ["Harvest", "Neil Young"], ["Talking Book", "Stevie Wonder"], ["Transformer", "Lou Reed"]],
+  1973: [["The Dark Side of the Moon", "Pink Floyd", ["Dark Side of the Moon"]], ["Houses of the Holy", "Led Zeppelin"], ["Innervisions", "Stevie Wonder"], ["Goodbye Yellow Brick Road", "Elton John"], ["Aladdin Sane", "David Bowie"]],
+  1974: [["Court and Spark", "Joni Mitchell"], ["Autobahn", "Kraftwerk"], ["Sheer Heart Attack", "Queen"], ["Diamond Dogs", "David Bowie"], ["Natty Dread", "Bob Marley & The Wailers"]],
+  1975: [["Born to Run", "Bruce Springsteen"], ["Wish You Were Here", "Pink Floyd"], ["Physical Graffiti", "Led Zeppelin"], ["A Night at the Opera", "Queen"], ["Blood on the Tracks", "Bob Dylan"]],
+  1976: [["Songs in the Key of Life", "Stevie Wonder"], ["Hotel California", "Eagles"], ["Ramones", "Ramones"], ["Boston", "Boston"], ["Station to Station", "David Bowie"]],
+  1977: [["Rumours", "Fleetwood Mac"], ["Never Mind the Bollocks, Here's the Sex Pistols", "Sex Pistols", ["Never Mind the Bollocks"]], ["Aja", "Steely Dan"], ["Exodus", "Bob Marley & The Wailers"], ["Low", "David Bowie"]],
+  1978: [["Parallel Lines", "Blondie"], ["Some Girls", "The Rolling Stones"], ["Van Halen", "Van Halen"], ["The Cars", "The Cars"], ["Darkness on the Edge of Town", "Bruce Springsteen"]],
+  1979: [["London Calling", "The Clash"], ["The Wall", "Pink Floyd"], ["Off the Wall", "Michael Jackson"], ["Unknown Pleasures", "Joy Division"], ["Highway to Hell", "AC/DC"]],
+  1980: [["Back in Black", "AC/DC"], ["Remain in Light", "Talking Heads"], ["Closer", "Joy Division"], ["Double Fantasy", "John Lennon & Yoko Ono"], ["Scary Monsters (and Super Creeps)", "David Bowie", ["Scary Monsters"]]],
+  1981: [["Tattoo You", "The Rolling Stones"], ["Moving Pictures", "Rush"], ["Escape", "Journey"], ["Dare", "The Human League"], ["Ghost in the Machine", "The Police"]],
+  1982: [["Thriller", "Michael Jackson"], ["The Number of the Beast", "Iron Maiden"], ["1999", "Prince"], ["Rio", "Duran Duran"], ["Nebraska", "Bruce Springsteen"]],
+  1983: [["Synchronicity", "The Police"], ["Murmur", "R.E.M."], ["Let's Dance", "David Bowie"], ["War", "U2"], ["Kill 'Em All", "Metallica"]],
+  1984: [["Purple Rain", "Prince"], ["Born in the U.S.A.", "Bruce Springsteen", ["Born in the USA"]], ["Like a Virgin", "Madonna"], ["Ride the Lightning", "Metallica"], ["Private Dancer", "Tina Turner"]],
+  1985: [["Hounds of Love", "Kate Bush"], ["Brothers in Arms", "Dire Straits"], ["Psychocandy", "The Jesus and Mary Chain"], ["Songs from the Big Chair", "Tears for Fears"], ["Rain Dogs", "Tom Waits"]],
+  1986: [["Master of Puppets", "Metallica"], ["Graceland", "Paul Simon"], ["The Queen Is Dead", "The Smiths"], ["Licensed to Ill", "Beastie Boys"], ["Slippery When Wet", "Bon Jovi"]],
+  1987: [["Appetite for Destruction", "Guns N' Roses"], ["The Joshua Tree", "U2"], ["Bad", "Michael Jackson"], ["Sign o' the Times", "Prince"], ["Paid in Full", "Eric B. & Rakim"]],
+  1988: [["It Takes a Nation of Millions to Hold Us Back", "Public Enemy"], ["Straight Outta Compton", "N.W.A"], ["Daydream Nation", "Sonic Youth"], ["Surfer Rosa", "Pixies"], ["Tracy Chapman", "Tracy Chapman"]],
+  1989: [["Doolittle", "Pixies"], ["Disintegration", "The Cure"], ["The Stone Roses", "The Stone Roses"], ["Paul's Boutique", "Beastie Boys"], ["Like a Prayer", "Madonna"]],
+  1990: [["Violator", "Depeche Mode"], ["Fear of a Black Planet", "Public Enemy"], ["Goo", "Sonic Youth"], ["Mama Said Knock You Out", "LL Cool J"], ["Please Hammer, Don't Hurt 'Em", "MC Hammer"]],
+  1991: [["Nevermind", "Nirvana"], ["Ten", "Pearl Jam"], ["Loveless", "My Bloody Valentine"], ["Achtung Baby", "U2"], ["Blood Sugar Sex Magik", "Red Hot Chili Peppers"]],
+  1992: [["The Chronic", "Dr. Dre"], ["Automatic for the People", "R.E.M."], ["Rage Against the Machine", "Rage Against the Machine"], ["Dirt", "Alice in Chains"], ["Slanted and Enchanted", "Pavement"]],
+  1993: [["In Utero", "Nirvana"], ["Enter the Wu-Tang (36 Chambers)", "Wu-Tang Clan", ["36 Chambers", "Enter the Wu-Tang"]], ["Siamese Dream", "The Smashing Pumpkins"], ["Debut", "Björk"], ["Doggystyle", "Snoop Doggy Dogg"]],
+  1994: [["Illmatic", "Nas"], ["Ready to Die", "The Notorious B.I.G."], ["Dookie", "Green Day"], ["Definitely Maybe", "Oasis"], ["The Downward Spiral", "Nine Inch Nails"]],
+  1995: [["(What's the Story) Morning Glory?", "Oasis", ["Morning Glory", "Whats the Story Morning Glory"]], ["The Bends", "Radiohead"], ["Jagged Little Pill", "Alanis Morissette"], ["Mellon Collie and the Infinite Sadness", "The Smashing Pumpkins", ["Mellon Collie"]], ["Different Class", "Pulp"]],
+  1996: [["The Score", "Fugees"], ["Reasonable Doubt", "Jay-Z"], ["Odelay", "Beck"], ["Endtroducing.....", "DJ Shadow"], ["Spice", "Spice Girls"]],
+  1997: [["OK Computer", "Radiohead"], ["Homework", "Daft Punk"], ["Life After Death", "The Notorious B.I.G."], ["The Fat of the Land", "The Prodigy"], ["Urban Hymns", "The Verve"]],
+  1998: [["The Miseducation of Lauryn Hill", "Lauryn Hill", ["Miseducation"]], ["Mezzanine", "Massive Attack"], ["Aquemini", "OutKast"], ["In the Aeroplane Over the Sea", "Neutral Milk Hotel"], ["Ray of Light", "Madonna"]],
+  1999: [["Californication", "Red Hot Chili Peppers"], ["The Slim Shady LP", "Eminem"], ["Play", "Moby"], ["...Baby One More Time", "Britney Spears", ["Baby One More Time"]], ["Things Fall Apart", "The Roots"]],
+  2000: [["Kid A", "Radiohead"], ["The Marshall Mathers LP", "Eminem"], ["Parachutes", "Coldplay"], ["Hybrid Theory", "Linkin Park"], ["Stankonia", "OutKast"]],
+  2001: [["Is This It", "The Strokes"], ["Discovery", "Daft Punk"], ["The Blueprint", "Jay-Z"], ["White Blood Cells", "The White Stripes"], ["Songs in A Minor", "Alicia Keys"]],
+  2002: [["A Rush of Blood to the Head", "Coldplay"], ["The Eminem Show", "Eminem"], ["Yankee Hotel Foxtrot", "Wilco"], ["Come Away with Me", "Norah Jones"], ["Songs for the Deaf", "Queens of the Stone Age"]],
+  2003: [["Elephant", "The White Stripes"], ["Speakerboxxx/The Love Below", "OutKast", ["Speakerboxxx", "The Love Below"]], ["Get Rich or Die Tryin'", "50 Cent"], ["Dangerously in Love", "Beyoncé"], ["Fever to Tell", "Yeah Yeah Yeahs"]],
+  2004: [["The College Dropout", "Kanye West"], ["Funeral", "Arcade Fire"], ["American Idiot", "Green Day"], ["Hot Fuss", "The Killers"], ["Madvillainy", "Madvillain"]],
+  2005: [["Late Registration", "Kanye West"], ["Demon Days", "Gorillaz"], ["Confessions on a Dance Floor", "Madonna"], ["Silent Alarm", "Bloc Party"], ["X&Y", "Coldplay"]],
+  2006: [["Back to Black", "Amy Winehouse"], ["The Black Parade", "My Chemical Romance"], ["Whatever People Say I Am, That's What I'm Not", "Arctic Monkeys", ["Whatever People Say I Am"]], ["FutureSex/LoveSounds", "Justin Timberlake", ["FutureSex LoveSounds"]], ["St. Elsewhere", "Gnarls Barkley"]],
+  2007: [["In Rainbows", "Radiohead"], ["Graduation", "Kanye West"], ["Good Girl Gone Bad", "Rihanna"], ["For Emma, Forever Ago", "Bon Iver"], ["Favourite Worst Nightmare", "Arctic Monkeys"]],
+  2008: [["Fleet Foxes", "Fleet Foxes"], ["Vampire Weekend", "Vampire Weekend"], ["808s & Heartbreak", "Kanye West"], ["Tha Carter III", "Lil Wayne"], ["The Fame", "Lady Gaga"]],
+  2009: [["xx", "The xx"], ["Merriweather Post Pavilion", "Animal Collective"], ["Wolfgang Amadeus Phoenix", "Phoenix"], ["The Fame Monster", "Lady Gaga"], ["The Blueprint 3", "Jay-Z"]],
+  2010: [["My Beautiful Dark Twisted Fantasy", "Kanye West"], ["The Suburbs", "Arcade Fire"], ["Teenage Dream", "Katy Perry"], ["Plastic Beach", "Gorillaz"], ["This Is Happening", "LCD Soundsystem"]],
+  2011: [["21", "Adele"], ["Take Care", "Drake"], ["Watch the Throne", "Jay-Z & Kanye West"], ["Bon Iver, Bon Iver", "Bon Iver"], ["Born This Way", "Lady Gaga"]],
+  2012: [["Channel Orange", "Frank Ocean"], ["good kid, m.A.A.d city", "Kendrick Lamar", ["good kid maad city"]], ["Born to Die", "Lana Del Rey"], ["Red", "Taylor Swift"], ["Lonerism", "Tame Impala"]],
+  2013: [["AM", "Arctic Monkeys"], ["Random Access Memories", "Daft Punk"], ["Yeezus", "Kanye West"], ["Pure Heroine", "Lorde"], ["Modern Vampires of the City", "Vampire Weekend"]],
+  2014: [["1989", "Taylor Swift"], ["x", "Ed Sheeran", ["Multiply"]], ["2014 Forest Hills Drive", "J. Cole"], ["Run the Jewels 2", "Run the Jewels"], ["Lost in the Dream", "The War on Drugs"]],
+  2015: [["To Pimp a Butterfly", "Kendrick Lamar"], ["Currents", "Tame Impala"], ["25", "Adele"], ["Carrie & Lowell", "Sufjan Stevens"], ["Beauty Behind the Madness", "The Weeknd"]],
+  2016: [["Blonde", "Frank Ocean"], ["Lemonade", "Beyoncé"], ["Blackstar", "David Bowie"], ["A Moon Shaped Pool", "Radiohead"], ["The Life of Pablo", "Kanye West"]],
+  2017: [["DAMN.", "Kendrick Lamar"], ["Ctrl", "SZA"], ["Melodrama", "Lorde"], ["Flower Boy", "Tyler, the Creator"], ["Reputation", "Taylor Swift"]],
+  2018: [["Astroworld", "Travis Scott"], ["Golden Hour", "Kacey Musgraves"], ["Invasion of Privacy", "Cardi B"], ["Swimming", "Mac Miller"], ["Dirty Computer", "Janelle Monáe"]],
+  2019: [["Igor", "Tyler, the Creator"], ["When We All Fall Asleep, Where Do We Go?", "Billie Eilish"], ["Norman Fucking Rockwell!", "Lana Del Rey", ["NFR"]], ["Fine Line", "Harry Styles"], ["Thank U, Next", "Ariana Grande"]],
+  2020: [["After Hours", "The Weeknd"], ["Folklore", "Taylor Swift"], ["Future Nostalgia", "Dua Lipa"], ["Punisher", "Phoebe Bridgers"], ["Fetch the Bolt Cutters", "Fiona Apple"]],
+  2021: [["Sour", "Olivia Rodrigo"], ["Call Me If You Get Lost", "Tyler, the Creator"], ["Donda", "Kanye West"], ["30", "Adele"], ["Happier Than Ever", "Billie Eilish"]],
+  2022: [["Renaissance", "Beyoncé"], ["Un Verano Sin Ti", "Bad Bunny"], ["Midnights", "Taylor Swift"], ["SOS", "SZA"], ["Harry's House", "Harry Styles"]],
+  2023: [["The Rise and Fall of a Midwest Princess", "Chappell Roan", ["Midwest Princess"]], ["Guts", "Olivia Rodrigo"], ["Utopia", "Travis Scott"], ["Did You Know That There's a Tunnel Under Ocean Blvd", "Lana Del Rey", ["Ocean Blvd"]], ["The Record", "boygenius"]],
+  2024: [["Brat", "Charli XCX"], ["Short n' Sweet", "Sabrina Carpenter"], ["Hit Me Hard and Soft", "Billie Eilish"], ["GNX", "Kendrick Lamar"], ["The Tortured Poets Department", "Taylor Swift", ["TTPD"]]],
+  2025: [["Debí Tirar Más Fotos", "Bad Bunny"], ["Mayhem", "Lady Gaga"], ["Man's Best Friend", "Sabrina Carpenter"], ["The Life of a Showgirl", "Taylor Swift"], ["Virgin", "Lorde"]],
+};
+export const ALBUMS: GameAlbum[] = Object.entries(BY_YEAR).flatMap(([year, list]) => list.map(([title, artist, aka]) => ({ title, artist, year: Number(year), aka })));
 
 /** Puzzle #1 was 30 October 2026, the day Undercover launched. Days follow the player's own calendar. */
 const START = Date.UTC(2026, 9, 30);
@@ -73,9 +102,13 @@ const ORDER = (() => {
   return order;
 })();
 /** The album for a puzzle. `skip` moves past albums whose cover couldn't be found. */
-export const albumFor = (n: number, skip = 0) => ALBUMS[ORDER[(((n - 1 + skip) % ORDER.length) + ORDER.length) % ORDER.length]];
+export function albumFor(n: number, skip = 0): GameAlbum {
+  // Puzzle #1 was played on the earlier album list, so it keeps its answer.
+  if (n === 1 && skip === 0) return ALBUMS.find((a) => a.title === "Born to Die")!;
+  return ALBUMS[ORDER[(((n - 1 + skip) % ORDER.length) + ORDER.length) % ORDER.length]];
+}
 
-export const isAnswer = (guess: string, a: GameAlbum) => norm(guess) === norm(a.title);
+export const isAnswer = (guess: string, a: GameAlbum) => !!norm(guess) && [a.title, ...(a.aka ?? [])].some((t) => norm(t) === norm(guess));
 
 export const coverSrc = (a: GameAlbum) => `/api/cover/game-${hash(a.artist + a.title)}?v=3&s=500&a=${encodeURIComponent(a.artist)}&t=${encodeURIComponent(a.title)}`;
 
