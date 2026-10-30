@@ -880,9 +880,13 @@ button.pick:disabled { opacity: .55; cursor: default; }
 .uc-head { padding-bottom: 8px; }
 .uc { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 44px; align-items: start; margin-top: 22px; }
 .uc-art { position: sticky; top: 24px; }
-.uc-cover { position: relative; aspect-ratio: 1; background: var(--raised); box-shadow: var(--shadow); overflow: hidden; }
-.uc-cover canvas { display: block; width: 100%; height: 100%; opacity: 0; }
-.uc-cover canvas.in { opacity: 1; }
+.uc-cover { position: relative; aspect-ratio: 1; background: var(--raised); box-shadow: var(--shadow); overflow: hidden; container-type: inline-size; }
+/* Blur is a share of the cover's width so it looks the same on a phone or a laptop; the slight zoom hides the soft
+   edges a blur leaves, and the transition eases each new guess into focus. */
+.uc-cover img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; user-select: none; -webkit-user-drag: none;
+  filter: blur(calc(var(--blur) * 100cqw)); transform: scale(calc(1 + var(--blur) * 2.2));
+  transition: filter 1.1s var(--ease), transform 1.1s var(--ease), opacity .5s var(--ease); }
+.uc-cover img.in { opacity: 1; }
 .uc-wait { position: absolute; inset: 0; display: grid; place-items: center; font: italic 17px var(--serif); color: var(--muted); }
 .uc-steps { list-style: none; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 14px 0 0; padding: 0; }
 .uc-steps li { height: 6px; background: var(--line); transition: background .3s var(--ease); }

@@ -2,7 +2,7 @@ import { hash } from "./format";
 import { norm } from "./match";
 
 /**
- * Undercover: guess the album from its cover with the colours scrambled. Everyone gets the same album each day;
+ * Undercover: guess the album from its cover, blurred. Everyone gets the same album each day;
  * each wrong guess (or skip) brings the cover a step closer to the real thing.
  */
 export type GameAlbum = { title: string; artist: string; year: number };
@@ -88,82 +88,13 @@ export function suggest(q: string, exclude: string[] = []) {
     .sort((a, b) => Number(!norm(a.title).startsWith(t)) - Number(!norm(b.title).startsWith(t))).slice(0, 6);
 }
 
-// ---------------------------------------------------------------- the scrambled cover
+// ---------------------------------------------------------------- the blurred cover
 /**
- * How scrambled the cover is before each guess: how many squares across, and what share of them are shuffled.
- * Colours are always the cover's real ones; it only gets more detailed and more in place.
+ * How blurred the cover is before each guess, as a share of its width. The first is so soft it's only the cover's
+ * main colours washed together; each miss brings it further into focus.
  */
-export const STAGES = [
-  { grid: 8, shuffle: 1, palette: true },  // only the cover's main colours, in proportion, in random squares
-  { grid: 6, shuffle: 1 },
-  { grid: 11, shuffle: 0.55 },
-  { grid: 19, shuffle: 0.2 },
-  { grid: 34, shuffle: 0, exact: true },  // fine enough that squares are true averages, so photos keep their shading
-] as const;
-export const MAX_GUESSES = STAGES.length;
-
-function rng(seed: number) {
-  return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
-
-/** The most common colours in a grid of pixels, by simple k-means, with how much of the cover each takes up. */
-export function palette(px: Uint8ClampedArray, k = 6, seed = 1) {
-  const n = px.length / 4, r = rng(seed);
-  const dist = (p: number, c: number[]) => (px[p * 4] - c[0]) ** 2 + (px[p * 4 + 1] - c[1]) ** 2 + (px[p * 4 + 2] - c[2]) ** 2;
-  // k-means++ start: each new centre is picked far from the ones already chosen, so distinct colours aren't merged.
-  const start = Math.floor(r() * n) * 4;
-  let centres = [[px[start], px[start + 1], px[start + 2]]];
-  while (centres.length < k) {
-    const d = Array.from({ length: n }, (_, p) => Math.min(...centres.map((c) => dist(p, c))));
-    const total = d.reduce((a, b) => a + b, 0);
-    if (!total) break;
-    let pick = r() * total, p = 0;
-    while (p < n - 1 && (pick -= d[p]) > 0) p++;
-    centres.push([px[p * 4], px[p * 4 + 1], px[p * 4 + 2]]);
-  }
-  k = centres.length;
-  const owner = new Int32Array(n);
-  for (let iter = 0; iter < 8; iter++) {
-    const sums = centres.map(() => [0, 0, 0, 0]);
-    for (let p = 0; p < n; p++) {
-      let best = 0, bd = Infinity;
-      for (let c = 0; c < k; c++) { const d = dist(p, centres[c]); if (d < bd) { bd = d; best = c; } }
-      owner[p] = best; const s = sums[best]; s[0] += px[p * 4]; s[1] += px[p * 4 + 1]; s[2] += px[p * 4 + 2]; s[3]++;
-    }
-    centres = sums.map((s, c) => (s[3] ? [s[0] / s[3], s[1] / s[3], s[2] / s[3]] : centres[c]));
-  }
-  const counts = new Array(k).fill(0);
-  for (let p = 0; p < n; p++) counts[owner[p]]++;
-  return centres.map((c, i) => ({ rgb: c.map(Math.round) as [number, number, number], share: counts[i] / n })).filter((c) => c.share >= 0.03).sort((a, b) => b.share - a.share);
-  // Under 3% is usually a blend where two colours meet, not a colour on the cover, so it's left out.
-}
-
-/**
- * Scrambles a grid×grid sample of the cover (RGBA pixels) for one stage by shuffling some of its squares. The palette
- * stage replaces the picture with its main colours in proportion, scattered at random; `detail` is a larger sample of
- * the cover to find those colours in, so they match the real cover closely.
- */
-export function scramble(px: Uint8ClampedArray, grid: number, stage: (typeof STAGES)[number], seed: number, detail: Uint8ClampedArray = px) {
-  const n = grid * grid, out = new Uint8ClampedArray(px.length), r = rng(seed);
-  const cells: [number, number, number][] = [];
-  const pal = palette(detail, 8, seed);
-  if ("palette" in stage && stage.palette) {
-    pal.forEach((c, i) => { const count = i === pal.length - 1 ? n - cells.length : Math.round(c.share * n); for (let j = 0; j < count && cells.length < n; j++) cells.push(c.rgb); });
-  } else {
-    // A big square straddling two colours would average into a shade that isn't on the cover, so each square takes
-    // the nearest of the cover's real colours instead.
-    const near = (c: number[]) => pal.reduce((best, p) => ((p.rgb[0] - c[0]) ** 2 + (p.rgb[1] - c[1]) ** 2 + (p.rgb[2] - c[2]) ** 2 < (best[0] - c[0]) ** 2 + (best[1] - c[1]) ** 2 + (best[2] - c[2]) ** 2 ? p.rgb : best), pal[0].rgb);
-    for (let i = 0; i < n; i++) { const c: [number, number, number] = [px[i * 4], px[i * 4 + 1], px[i * 4 + 2]]; cells.push("exact" in stage || !pal.length ? c : near(c)); }
-  }
-  // Shuffle a share of the squares among themselves; the rest stay where they belong.
-  const moving = Array.from({ length: n }, (_, i) => i).filter(() => r() < stage.shuffle);
-  const dest = [...moving];
-  for (let i = dest.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [dest[i], dest[j]] = [dest[j], dest[i]]; }
-  const at = Array.from({ length: n }, (_, i) => i);
-  moving.forEach((from, i) => { at[dest[i]] = from; });
-  for (let i = 0; i < n; i++) { const c = cells[at[i]]; out[i * 4] = c[0]; out[i * 4 + 1] = c[1]; out[i * 4 + 2] = c[2]; out[i * 4 + 3] = 255; }
-  return out;
-}
+export const BLUR = [0.13, 0.085, 0.055, 0.032, 0.016] as const;
+export const MAX_GUESSES = BLUR.length;
 
 /** The share text: "listener Undercover #12 3/5" and a row of squares. */
 export function shareText(n: number, marks: string, won: boolean) {

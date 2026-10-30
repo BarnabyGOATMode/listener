@@ -3,8 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArtistBadge, Avatar } from "@/components/bits";
 import { useSession } from "@/components/Providers";
-import { hash } from "@/lib/format";
-import { ALBUMS, type GameAlbum, MAX_GUESSES, STAGES, albumFor, coverSrc, isAnswer, puzzleNumber, scramble, shareText, suggest } from "@/lib/game";
+import { ALBUMS, BLUR, type GameAlbum, MAX_GUESSES, albumFor, coverSrc, isAnswer, puzzleNumber, shareText, suggest } from "@/lib/game";
 import type { MiniProfile } from "@/lib/feed";
 import { norm, sameArtist } from "@/lib/match";
 import { supabase } from "@/lib/supabase/client";
@@ -102,12 +101,12 @@ export function Undercover() {
       <div className="pagehead uc-head">
         <div className="kicker">{practice != null ? "Practice round" : `Daily puzzle #${today}`}</div>
         <h1 className="display">Undercover</h1>
-        <p className="lede">Name the album from its scrambled cover. Each miss brings it a little more into focus. You get {MAX_GUESSES} guesses.</p>
+        <p className="lede">Name the album from its blurred cover. Each miss brings it a little more into focus. You get {MAX_GUESSES} guesses.</p>
       </div>
 
       <div className="uc">
         <div className="uc-art">
-          <ScrambledCover key={`${album.title}-${album.artist}`} album={album} stage={done ? null : game.marks.length} onMissing={noCover} />
+          <BlurredCover key={`${album.title}-${album.artist}`} album={album} stage={done ? null : game.marks.length} onMissing={noCover} />
           <ol className="uc-steps" aria-label={`Guess ${Math.min(game.marks.length + 1, MAX_GUESSES)} of ${MAX_GUESSES}`}>
             {Array.from({ length: MAX_GUESSES }, (_, i) => {
               const m = game.marks[i];
@@ -172,55 +171,20 @@ export function Undercover() {
   );
 }
 
-/** The cover drawn onto a canvas, scrambled for the current stage, or shown as it really is once the game is over. */
-function ScrambledCover({ album, stage, onMissing }: { album: GameAlbum; stage: number | null; onMissing: () => void }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const [img, setImg] = useState<HTMLImageElement | null>(null);
+/** The cover, blurred for the current guess and easing into focus after each miss; sharp once the game is over. */
+function BlurredCover({ album, stage, onMissing }: { album: GameAlbum; stage: number | null; onMissing: () => void }) {
+  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    const i = new Image();
-    i.decoding = "async";
-    i.onload = () => setImg(i);
-    i.onerror = () => { setFailed(true); onMissing(); };
-    i.src = coverSrc(album);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [album]);
-
-  useEffect(() => {
-    const c = canvas.current;
-    if (!img || !c) return;
-    const size = 600, ctx = c.getContext("2d")!;
-    c.width = c.height = size;
-    if (stage == null) {
-      ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(img, 0, 0, size, size);
-    } else {
-      const s = STAGES[Math.min(stage, STAGES.length - 1)];
-      // Average the cover down to a small grid (in two steps, so each square is a fair average of its patch).
-      const mid = document.createElement("canvas"); mid.width = mid.height = 96;
-      const m = mid.getContext("2d", { willReadFrequently: true })!; m.imageSmoothingQuality = "high"; m.drawImage(img, 0, 0, 96, 96);
-      const small = document.createElement("canvas"); small.width = small.height = s.grid;
-      const sc = small.getContext("2d", { willReadFrequently: true })!; sc.imageSmoothingQuality = "high"; sc.drawImage(mid, 0, 0, s.grid, s.grid);
-      const data = sc.getImageData(0, 0, s.grid, s.grid);
-      const detail = m.getImageData(0, 0, 96, 96).data;
-      data.data.set(scramble(data.data, s.grid, s, hash(album.title + album.artist) + stage, detail));
-      sc.putImageData(data, 0, 0);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(small, 0, 0, size, size);
-      // Hairline gaps between the squares, so it reads as tiles rather than a blurry photo.
-      ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 1;
-      const step = size / s.grid;
-      for (let i = 1; i < s.grid; i++) { ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, size); ctx.moveTo(0, i * step); ctx.lineTo(size, i * step); ctx.stroke(); }
-    }
-    // Each new stage settles in from a soft blur.
-    c.animate?.([{ opacity: 0.35, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0)" }], { duration: 550, easing: "cubic-bezier(.25,.6,.3,1)" });
-  }, [img, stage, album]);
-
+  const ref = useRef<HTMLImageElement>(null);
+  // A cover that arrives before the page has started up fires its load event too early to catch, so check directly.
+  useEffect(() => { const i = ref.current; if (i?.complete) { if (i.naturalWidth) setLoaded(true); else { setFailed(true); onMissing(); } } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const blur = stage == null ? 0 : BLUR[Math.min(stage, BLUR.length - 1)];
   return (
-    <div className="uc-cover">
-      <canvas ref={canvas} className={img ? "in" : ""} role="img" aria-label={stage == null ? `${album.title} by ${album.artist}` : "The scrambled album cover"} />
-      {!img && <span className="uc-wait">{failed ? "Finding another cover…" : "Scrambling the cover…"}</span>}
+    <div className="uc-cover" style={{ "--blur": blur } as React.CSSProperties}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img ref={ref} src={coverSrc(album)} alt={stage == null ? `${album.title} by ${album.artist}` : "The blurred album cover"} draggable={false}
+        className={loaded ? "in" : ""} onLoad={() => setLoaded(true)} onError={() => { setFailed(true); onMissing(); }} onContextMenu={(e) => e.preventDefault()} />
+      {!loaded && <span className="uc-wait">{failed ? "Finding another cover…" : "Fetching today's cover…"}</span>}
     </div>
   );
 }
