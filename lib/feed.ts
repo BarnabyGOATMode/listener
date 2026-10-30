@@ -21,7 +21,8 @@ export async function loadFeed({ people, before, limit = 15 }: { people?: string
   if (people && !people.length) return { items: [] as FeedItem[], next: null };
   let logs = db.from("logs").select(`*, ${P}, album:albums(*)`).order("posted_at", { ascending: false }).limit(limit);
   let songs = db.from("song_reviews").select(`*, ${P}, album:albums(*)`).order("posted_at", { ascending: false }).limit(limit);
-  let releases = db.from("albums").select(`*, ${P}`).eq("source", "release").order("created_at", { ascending: false }).limit(limit);
+  // Named link: albums and profiles are also joined through listen_later, so the bare embed is ambiguous.
+  let releases = db.from("albums").select("*, profile:profiles!albums_owner_id_fkey(*)").eq("source", "release").order("created_at", { ascending: false }).limit(limit);
   if (people) { logs = logs.in("user_id", people); songs = songs.in("user_id", people); releases = releases.in("owner_id", people); }
   if (before) { logs = logs.lt("posted_at", before); songs = songs.lt("posted_at", before); releases = releases.lt("created_at", before); }
   const [l, s, r] = await Promise.all([logs, songs, releases]);
