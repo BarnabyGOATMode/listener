@@ -61,6 +61,7 @@ export default function DiscoverPage() {
         <div className="jump">
           <Link href="/charts"><b>Charts</b><span>Top-rated albums and songs</span></Link>
           <Link href="/lists"><b>Lists</b><span>Records gathered around an idea</span></Link>
+          <Link href="/play"><b>Undercover</b><span>Guess today&apos;s scrambled cover</span></Link>
           <Link href="/news"><b>News</b><span>The music press wire</span></Link>
         </div>
       </div>

@@ -13,7 +13,7 @@ Built with Next.js, Supabase (database and logins) and MusicBrainz (album data, 
 
 ## Where things live
 
-- `app/`: pages for the feed (`/`), `discover`, `albums` (Search), `charts`, `lists`, `list/[id]`, `news`, `messages`, `album/[id]`, `album/[id]/song/[n]`, `artist/[id]`, `u/[handle]` (wall, diary, lists, Listen later, stats), and sign-in and account pages
+- `app/`: pages for the feed (`/`), `discover`, `albums` (Search), `charts`, `lists`, `list/[id]`, `play` (the Undercover game), `news`, `messages`, `album/[id]`, `album/[id]/song/[n]`, `artist/[id]`, `u/[handle]` (wall, diary, lists, Listen later, stats), and sign-in and account pages
 - `app/api/`: server routes for MusicBrainz search, album caching and account deletion
 - `components/`: masthead, posts, star ratings, Listen now, profile form
 - `lib/recommend.ts`: the Discover recommendation logic (a simple stand-in, meant to be replaced)
