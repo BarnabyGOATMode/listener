@@ -9,6 +9,7 @@ import { ProfileForm } from "@/components/ProfileForm";
 import { CoverWall, type WallTile } from "@/components/CoverWall";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { FollowList } from "@/components/FollowList";
+import { Diary, ListenLaterTab, ProfileLists, Stats } from "./ProfileTabs";
 import { applyLook, useSession } from "@/components/Providers";
 import { plural, stars } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
@@ -16,6 +17,8 @@ import type { Album, Log, Look, Profile, SongReview } from "@/lib/types";
 
 type LogRow = Log & { album: Album };
 type SongRow = SongReview & { album: Album };
+const TABS = [["wall", "Wall"], ["diary", "Diary"], ["lists", "Lists"], ["later", "Listen later"], ["stats", "Stats"]] as const;
+type Tab = (typeof TABS)[number][0];
 
 export function ProfileView({ handle }: { handle: string }) {
   const { user, profile: me, refresh } = useSession();
@@ -31,6 +34,13 @@ export function ProfileView({ handle }: { handle: string }) {
   const [adding, setAdding] = useState(false);
   const [list, setList] = useState<"followers" | "following" | null>(null);
   const own = !!me && p?.id === me.id;
+  const router = useRouter();
+  const tab: Tab = TABS.find(([k]) => k === params.get("tab"))?.[0] ?? "wall";
+  const setTab = (t: Tab) => {
+    const next = new URLSearchParams(params.toString());
+    if (t === "wall") next.delete("tab"); else next.set("tab", t);
+    router.replace(`/u/${handle}${next.size ? `?${next}` : ""}`, { scroll: false });
+  };
 
   useEffect(() => setSettings(params.get("settings") === "1"), [params]);
 
@@ -121,12 +131,23 @@ export function ProfileView({ handle }: { handle: string }) {
         </>
       )}
 
-      <div className="section-h"><h2>The wall</h2><span>{plural(logs.length, "album")}{songs.length ? ` · ${plural(songs.length, "song")}` : ""}{favs.length ? " · favorites shown large" : ""}</span></div>
-      {tiles.length ? <CoverWall tiles={tiles} /> : (
-        <div className="empty">{own
-          ? <><strong>Your wall is empty.</strong>Find an album in <Link href="/albums">Search</Link> and rate it. Every album and song you review goes up here, newest first.</>
-          : <><strong>{p.name} hasn&apos;t reviewed anything yet.</strong></>}</div>
+      <div className="tabs ptabs" role="tablist" aria-label={`${p.name}'s profile`}>
+        {TABS.map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}</button>)}
+      </div>
+      {tab === "wall" && (
+        <>
+          <p className="hint ptab-note">{plural(logs.length, "album")}{songs.length ? ` · ${plural(songs.length, "song")}` : ""}{favs.length ? " · favorites shown large" : ""}</p>
+          {tiles.length ? <CoverWall tiles={tiles} /> : (
+            <div className="empty">{own
+              ? <><strong>Your wall is empty.</strong>Find an album in <Link href="/albums">Search</Link> and rate it. Every album and song you review goes up here, newest first.</>
+              : <><strong>{p.name} hasn&apos;t reviewed anything yet.</strong></>}</div>
+          )}
+        </>
       )}
+      {tab === "diary" && <Diary logs={logs} songs={songs} own={own} />}
+      {tab === "lists" && <ProfileLists profile={p} own={own} />}
+      {tab === "later" && <ListenLaterTab profile={p} own={own} />}
+      {tab === "stats" && <Stats logs={logs} songs={songs} name={own ? "you" : p.name} />}
     </>
   );
 }

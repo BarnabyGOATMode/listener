@@ -75,11 +75,12 @@ function Item({ n, unread }: { n: Row; unread: boolean }) {
   const subject = song ?? n.album?.title;
   const what = n.target_type === "release" ? "your release" : "your review of";
   const text =
-    n.kind === "like" ? <>liked {what} <i>{subject}</i></>
+    n.target_type === "list" ? (n.kind === "like" ? <>liked your list</> : <>commented on your list: “{n.excerpt}”</>)
+    : n.kind === "like" ? <>liked {what} <i>{subject}</i></>
     : n.kind === "comment" ? <>commented on {what} <i>{subject}</i>: “{n.excerpt}”</>
     : n.kind === "rated" ? <>logged your release <i>{subject}</i></>
     : <>started following you</>;
-  const href = n.kind === "follow" ? `/u/${n.actor?.handle}` : n.track_index != null ? `/album/${n.album_id}/song/${n.track_index + 1}` : `/album/${n.album_id}`;
+  const href = n.target_type === "list" ? `/list/${n.target_id}` : n.kind === "follow" ? `/u/${n.actor?.handle}` : n.track_index != null ? `/album/${n.album_id}/song/${n.track_index + 1}` : `/album/${n.album_id}`;
   return (
     <Link href={href} className={`nitem${unread ? " unread" : ""}`}>
       <Avatar profile={n.actor} />

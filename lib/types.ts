@@ -58,7 +58,7 @@ export type SongReview = {
   updated_at: string;
 };
 
-export type TargetType = "log" | "song" | "release";
+export type TargetType = "log" | "song" | "release" | "list";
 
 export type Comment = { id: string; user_id: string; target_type: TargetType; target_id: string; body: string; created_at: string };
 
@@ -113,3 +113,15 @@ export type InboxRow = {
   other_last_read: string;
   unread: number;
 };
+
+export type List = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  ranked: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ListItem = { list_id: string; album_id: string; position: number; note: string; created_at: string };

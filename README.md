@@ -6,14 +6,14 @@ Built with Next.js, Supabase (database and logins) and MusicBrainz (album data, 
 
 ## Setting up
 
-1. **Database.** In Supabase, open **SQL Editor → New query**, paste the contents of `supabase/migrations/0001_init.sql`, and run it once.
+1. **Database.** In Supabase, open **SQL Editor → New query**, paste the contents of each file in `supabase/migrations/` (0001, 0002, … in order), and run each one once.
 2. **Logins.** In Supabase, go to **Authentication → URL Configuration**. Set **Site URL** to your live address (e.g. `https://listener.vercel.app`) and add `https://YOUR-SITE/auth/callback` under **Redirect URLs**.
 3. **Environment variables.** Copy `.env.example` to `.env.local` for local work, or add the same variables in Vercel under **Project → Settings → Environment Variables**.
 4. **Run locally:** `npm install`, then `npm run dev`.
 
 ## Where things live
 
-- `app/`: pages for the feed (`/`), `discover`, `albums`, `album/[id]`, `album/[id]/song/[n]`, `u/[handle]`, and sign-in and account pages
+- `app/`: pages for the feed (`/`), `discover`, `albums` (Search), `charts`, `lists`, `list/[id]`, `news`, `messages`, `album/[id]`, `album/[id]/song/[n]`, `artist/[id]`, `u/[handle]` (wall, diary, lists, Listen later, stats), and sign-in and account pages
 - `app/api/`: server routes for MusicBrainz search, album caching and account deletion
 - `components/`: masthead, posts, star ratings, Listen now, profile form
 - `lib/recommend.ts`: the Discover recommendation logic (a simple stand-in, meant to be replaced)

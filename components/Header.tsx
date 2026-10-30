@@ -9,7 +9,7 @@ import { useMessages } from "./Messages";
 import { useNotifications } from "./Notifications";
 import { useSession } from "./Providers";
 
-const NAV = [["/", "Feed"], ["/discover", "Discover"], ["/albums", "Search"], ["/news", "News"]] as const;
+const NAV = [["/", "Feed"], ["/discover", "Discover"], ["/albums", "Search"], ["/charts", "Charts"], ["/lists", "Lists"], ["/news", "News"]] as const;
 
 export function Header() {
   const { user, profile } = useSession();

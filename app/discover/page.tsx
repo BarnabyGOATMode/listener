@@ -2,9 +2,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AlbumCard } from "@/components/AlbumCard";
+import { ListCard } from "@/components/ListCard";
 import { LiveFeed } from "@/components/LiveFeed";
 import { useSession } from "@/components/Providers";
 import { ago } from "@/lib/format";
+import { type ListRow, loadLists, popularLists } from "@/lib/lists";
 import { type Pick, type Signal, recommend } from "@/lib/recommend";
 import { supabase } from "@/lib/supabase/client";
 import type { Album } from "@/lib/types";
@@ -14,6 +16,13 @@ type Shelves = { picks: Pick[]; fresh: Album[]; loved: { album: Album; n: number
 export default function DiscoverPage() {
   const { user, ready, following } = useSession();
   const [s, setS] = useState<Shelves | null>(null);
+  const [lists, setLists] = useState<ListRow[]>([]);
+  useEffect(() => {
+    popularLists(6).then(async (top) => {
+      const recent = top.length >= 4 ? [] : (await loadLists({ limit: 12 })).filter((l) => l.items.length && !top.some((t) => t.id === l.id));
+      setLists([...top, ...recent].slice(0, 6));
+    }, () => {});
+  }, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -49,6 +58,11 @@ export default function DiscoverPage() {
       <div className="pagehead">
         <h1 className="display">Discover</h1>
         <p className="lede">New music picked for you. Open any record to rate it.</p>
+        <div className="jump">
+          <Link href="/charts"><b>Charts</b><span>Top-rated albums and songs</span></Link>
+          <Link href="/lists"><b>Lists</b><span>Records gathered around an idea</span></Link>
+          <Link href="/news"><b>News</b><span>The music press wire</span></Link>
+        </div>
       </div>
       {!s ? <p className="more">Finding records…</p> : (
         <>
@@ -56,6 +70,12 @@ export default function DiscoverPage() {
           <Shelf title="New from artists on listener" note="latest releases">{s.fresh.map((a) => <AlbumCard key={a.id} album={a} note={`New ${ago(a.created_at)}`} />)}</Shelf>
           <Shelf title="Loved by people you follow" note="rated 4★ or more">{s.loved.map(({ album, n }) => <AlbumCard key={album.id} album={album} note={`Loved by ${n} ${n === 1 ? "person" : "people"} you follow`} />)}</Shelf>
           <Shelf title="Popular on listener" note="most logged">{s.popular.map((a) => <AlbumCard key={a.id} album={a} />)}</Shelf>
+          {lists.length > 0 && (
+            <>
+              <div className="section-h"><h2>Lists to dig through</h2><Link className="u" href="/lists">all lists</Link></div>
+              <div className="lgrid">{lists.map((l) => <ListCard key={l.id} list={l} />)}</div>
+            </>
+          )}
           <Shelf title="Highest rated" note="community average">{s.top.map(({ album, avg }) => <AlbumCard key={album.id} album={album} sub={`★ ${avg.toFixed(1)}`} />)}</Shelf>
           {!s.picks.length && !s.popular.length && <div className="empty"><strong>Nothing to recommend yet.</strong>Picks appear once people start logging albums. Start in <Link href="/albums">Search</Link>.</div>}
           <div className="mobile-only" style={{ marginTop: 32 }}><LiveFeed /></div>

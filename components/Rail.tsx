@@ -23,6 +23,8 @@ const I = {
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   news: <><path d="M4.5 5.5h12v13a2 2 0 0 0 2 2h-12a2 2 0 0 1-2-2z" /><path d="M16.5 9.5h3v9a2 2 0 0 1-2 2M7.5 9h6M7.5 12.5h6M7.5 16h4" /></>,
   plane: <path d="M21 3.5 10.6 13.9M21 3.5l-6.6 17-3.8-6.6L4 10.1z" />,
+  chart: <path d="M4.5 20.5V13M9.5 20.5V8M14.5 20.5V11M19.5 20.5V4.5M3 20.5h18" />,
+  list: <path d="M8.5 6.5h12M8.5 12h12M8.5 17.5h12M4 6.5h.01M4 12h.01M4 17.5h.01" />,
 };
 const Icon = ({ d }: { d: React.ReactNode }) => <svg viewBox="0 0 24 24" aria-hidden="true">{d}</svg>;
 
@@ -75,6 +77,8 @@ export function Rail() {
         <Item href="/" label="Feed" icon={<Icon d={I.home} />} current={is("/")} />
         <Item href="/discover" label="Discover" icon={<Icon d={I.compass} />} current={is("/discover")} />
         <Item href="/albums" label="Search" icon={<Icon d={I.search} />} current={is("/albums")} />
+        <Item href="/charts" label="Charts" icon={<Icon d={I.chart} />} current={is("/charts")} />
+        <Item href="/lists" label="Lists" icon={<Icon d={I.list} />} current={is("/lists") || is("/list/")} />
         <Item href="/news" label="News" icon={<Icon d={I.news} />} current={is("/news")} />
         {available && <Item label="Notifications" icon={<Icon d={I.heart} />} onClick={() => toggle("rail")} badge={open ? 0 : unread} current={open === "rail"} trigger />}
         {profile && <Item href="/messages" label="Messages" icon={<Icon d={I.plane} />} current={is("/messages")} badge={unreadMessages + requests} />}
