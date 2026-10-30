@@ -93,7 +93,7 @@ export function suggest(q: string, exclude: string[] = []) {
  * How blurred the cover is before each guess, as a share of its width. The first is so soft it's only the cover's
  * main colours washed together; each miss brings it further into focus.
  */
-export const BLUR = [0.13, 0.085, 0.055, 0.032, 0.016] as const;
+export const BLUR = [0.08, 0.052, 0.034, 0.02, 0.01] as const;
 export const MAX_GUESSES = BLUR.length;
 
 /** The share text: "listener Undercover #12 3/5" and a row of squares. */
